@@ -6,6 +6,7 @@ import { deleteFavorite, signOutAction } from "@/app/actions";
 import { Avatar } from "@/components/ui/avatar";
 import { useRun } from "@/components/use-run";
 import { balancesFor, buildLedger } from "@/lib/balance";
+import { DEFAULT_REWARD_GOAL } from "@/lib/credits";
 import type { DashboardData, FavoriteView } from "@/lib/types";
 import { BalanceCard } from "./balance-card";
 import { FriendsSheet } from "./friends-sheet";
@@ -32,6 +33,11 @@ export function Dashboard({ data }: { data: DashboardData }) {
     const friendIds = new Set(friends.map((f) => f.id));
     return all.filter((p) => friendIds.has(p.userId) || p.net !== 0);
   }, [ledger, me.id, people, friends]);
+
+  const goal = useMemo(() => {
+    const cheapest = [...data.rewards].sort((a, b) => a.credits - b.credits)[0];
+    return cheapest ? { name: cheapest.name, credits: cheapest.credits } : { name: "un canje", credits: DEFAULT_REWARD_GOAL };
+  }, [data.rewards]);
 
   const open = (s: Exclude<Sheets, null>, p: FavoriteView | null = null) => {
     setPreset(p);
@@ -68,7 +74,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
         </div>
       </header>
 
-      <BalanceCard pairs={pairs} people={people} hasFriends={friends.length > 0} />
+      <BalanceCard pairs={pairs} people={people} hasFriends={friends.length > 0} goal={goal} />
 
       <section>
         <h2 className="mb-3 flex items-center gap-1.5 px-1 text-xs font-medium uppercase tracking-wider text-muted">

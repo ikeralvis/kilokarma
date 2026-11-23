@@ -1,37 +1,33 @@
 @import "tailwindcss";
 
-/*
- * Paleta activa: #5 (slate azulado + coral).
- * Para probar la #4 (índigo + lima) cambia los valores de abajo:
- *   accent #c2f24a · soft #e8e6f2 · muted #9aa7e6 · line #3d4a8c · surface #1b2140 · bg #090d1a
- */
+/* Paleta activa: #4 (índigo azulado + lima). */
 :root {
   color-scheme: light;
-  --bg: #f1f5f6;
+  --bg: #eef0f9;
   --surface: #ffffff;
-  --surface-2: #e9eff0;
-  --line: #d3dde0;
-  --muted: #5d7079;
-  --fg: #1e262b;
-  --accent: #ff7a5c;
-  --accent-fg: #1e262b;
-  --accent-text: #d4482a; /* accent legible sobre fondo claro */
+  --surface-2: #e3e7f5;
+  --line: #ced4ea;
+  --muted: #55609f;
+  --fg: #1b2140;
+  --accent: #c2f24a;
+  --accent-fg: #1b2140;
+  --accent-text: #3d4a8c; /* acento legible como texto sobre fondo claro */
   --positive: #1f8f6b;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --bg: #0e1113;
-    --surface: #1e262b;
-    --surface-2: #283239;
-    --line: #34424a;
-    --muted: #93aab3;
-    --fg: #e9eff0;
-    --accent: #ff7a5c;
-    --accent-fg: #0e1113;
-    --accent-text: #ff7a5c;
-    --positive: #6fd3b0;
+    --bg: #090d1a;
+    --surface: #1b2140;
+    --surface-2: #262e57;
+    --line: #333d78;
+    --muted: #9aa7e6;
+    --fg: #e8e6f2;
+    --accent: #c2f24a;
+    --accent-fg: #090d1a;
+    --accent-text: #c2f24a;
+    --positive: #7fe0b8;
   }
 }
 

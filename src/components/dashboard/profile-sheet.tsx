@@ -5,7 +5,7 @@ import { updateProfile } from "@/app/actions";
 import { Chip, Field, inputCls, SubmitButton } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/sheet";
 import { useRun } from "@/components/use-run";
-import { costPerKm, EUR_PER_CREDIT } from "@/lib/credits";
+import { costPerKm } from "@/lib/credits";
 import type { VehicleView } from "@/lib/types";
 
 const num = (s: string) => Number(s.replace(",", "."));
@@ -15,8 +15,10 @@ export function ProfileSheet({ open, onClose, name: initialName, vehicle }: { op
   const [hasCar, setHasCar] = useState(vehicle.hasCar);
   const [price, setPrice] = useState(String(vehicle.fuelPricePerL));
   const [cons, setCons] = useState(String(vehicle.consumptionL100));
+  const [epc, setEpc] = useState(String(vehicle.euroPerCredit));
   const { run, pending, error } = useRun();
   const perKm = costPerKm(num(price) || 0, num(cons) || 0);
+  const epcNum = num(epc) || vehicle.euroPerCredit;
 
   return (
     <Sheet open={open} onClose={onClose} title="Mi perfil">
@@ -24,7 +26,7 @@ export function ProfileSheet({ open, onClose, name: initialName, vehicle }: { op
         className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
-          run(() => updateProfile({ name, hasCar, fuelPricePerL: num(price) || vehicle.fuelPricePerL, consumptionL100: num(cons) || vehicle.consumptionL100 }), onClose);
+          run(() => updateProfile({ name, hasCar, fuelPricePerL: num(price) || vehicle.fuelPricePerL, consumptionL100: num(cons) || vehicle.consumptionL100, euroPerCredit: num(epc) || vehicle.euroPerCredit }), onClose);
         }}
       >
         <Field label="Nombre">
@@ -52,9 +54,13 @@ export function ProfileSheet({ open, onClose, name: initialName, vehicle }: { op
                 <input value={cons} onChange={(e) => setCons(e.target.value)} inputMode="decimal" className={inputCls} />
               </Field>
             </div>
+            <Field label="1 crédito equivale a (€)">
+              <input value={epc} onChange={(e) => setEpc(e.target.value)} inputMode="decimal" className={inputCls} />
+            </Field>
             <p className="rounded-2xl bg-surface-2 p-3 text-sm text-muted">
               Cada km te cuesta <span className="font-medium text-fg">{perKm.toFixed(3)} €</span> ≈{" "}
-              <span className="font-medium text-fg">{(perKm / EUR_PER_CREDIT).toFixed(2)} créditos</span> (1 crédito = {EUR_PER_CREDIT.toFixed(2)} €). El precio se actualiza solo con el último que metas en un viaje.
+              <span className="font-medium text-fg">{(perKm / epcNum).toFixed(2)} créditos</span>. Un viaje de 12 km ≈{" "}
+              <span className="font-medium text-fg">{Math.round((12 * perKm) / epcNum)} cr.</span> El precio de la gasolina se actualiza solo con el último que metas en un viaje.
             </p>
           </>
         ) : (

@@ -1,11 +1,21 @@
 import { Gift } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { rewardProgress, type PairBalance } from "@/lib/balance";
-import { REWARD_THRESHOLD } from "@/lib/credits";
 import type { Person } from "@/lib/types";
 import { fmtCredits } from "@/lib/utils";
 
-export function BalanceCard({ pairs, people, hasFriends }: { pairs: PairBalance[]; people: Person[]; hasFriends: boolean }) {
+export function BalanceCard({
+  pairs,
+  people,
+  hasFriends,
+  goal,
+}: {
+  pairs: PairBalance[];
+  people: Person[];
+  hasFriends: boolean;
+  /** Canje más barato de tu lista: la barra avanza hacia él. */
+  goal: { name: string; credits: number };
+}) {
   const byId = new Map(people.map((m) => [m.id, m]));
   const total = pairs.reduce((a, p) => a + p.net, 0);
   const sorted = [...pairs].sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
@@ -28,7 +38,7 @@ export function BalanceCard({ pairs, people, hasFriends }: { pairs: PairBalance[
         {sorted.map((p) => {
           const m = byId.get(p.userId);
           if (!m) return null;
-          const { progress, remaining, rewards } = rewardProgress(p.net, REWARD_THRESHOLD);
+          const { progress, remaining, rewards } = rewardProgress(p.net, goal.credits);
           const theyOwe = p.net > 0;
           return (
             <li key={p.userId}>
@@ -45,8 +55,8 @@ export function BalanceCard({ pairs, people, hasFriends }: { pairs: PairBalance[
                   {p.net !== 0 && (
                     <p className="flex items-center gap-1 text-xs text-muted">
                       <Gift size={12} />
-                      {rewards > 0 ? `${rewards} ${rewards === 1 ? "ronda lista" : "rondas listas"} · ` : ""}
-                      {remaining} cr. para la próxima ({REWARD_THRESHOLD} = 1 menú)
+                      {rewards > 0 ? `${rewards} ${rewards === 1 ? "canje listo" : "canjes listos"} · ` : ""}
+                      {remaining} cr. para {goal.name.toLowerCase()} ({goal.credits} cr.)
                     </p>
                   )}
                 </div>

@@ -58,7 +58,7 @@ export async function getDashboard(me: Profile): Promise<DashboardData> {
     ...redemptionRows.flatMap((r) => [r.fromUserId, r.toUserId]),
   ]);
   const people = await db
-    .select({ userId: profiles.userId, name: profiles.name, email: profiles.email, hasCar: profiles.hasCar, fuel: profiles.fuelPricePerL, cons: profiles.consumptionL100 })
+    .select({ userId: profiles.userId, name: profiles.name, email: profiles.email, hasCar: profiles.hasCar, fuel: profiles.fuelPricePerL, cons: profiles.consumptionL100, epc: profiles.euroPerCredit })
     .from(profiles)
     .where(inArray(profiles.userId, [...ids]));
   const byId = new Map(people.map((p) => [p.userId, p]));
@@ -66,13 +66,14 @@ export async function getDashboard(me: Profile): Promise<DashboardData> {
 
   return {
     me: { id: uid, name: me.name, friendCode: me.friendCode },
-    vehicle: { hasCar: me.hasCar, fuelPricePerL: Number(me.fuelPricePerL), consumptionL100: Number(me.consumptionL100) },
+    vehicle: { hasCar: me.hasCar, fuelPricePerL: Number(me.fuelPricePerL), consumptionL100: Number(me.consumptionL100), euroPerCredit: Number(me.euroPerCredit) },
     friends: friendIds.map((id) => ({
       ...person(id),
       email: byId.get(id)?.email ?? "",
       hasCar: byId.get(id)?.hasCar ?? true,
       fuelPricePerL: Number(byId.get(id)?.fuel ?? 1.65),
       consumptionL100: Number(byId.get(id)?.cons ?? 6.5),
+      euroPerCredit: Number(byId.get(id)?.epc ?? 0.1),
     })),
     pending: pendingRows.map((r) => ({ id: r.id, from: person(r.requesterId) })),
     people: people.map((p) => ({ id: p.userId, name: p.name })),

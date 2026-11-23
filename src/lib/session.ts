@@ -22,9 +22,9 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     .onConflictDoNothing();
   // Catálogo de canjes inicial (editable en la app).
   await db.insert(rewards).values([
-    { ownerId: user.id, name: "Pintxo", credits: 5 },
-    { ownerId: user.id, name: "Ronda de cañas", credits: 15 },
-    { ownerId: user.id, name: "Cena", credits: 40 },
+    { ownerId: user.id, name: "Pintxo de tortilla", credits: 30 },
+    { ownerId: user.id, name: "Ronda de cañas", credits: 70 },
+    { ownerId: user.id, name: "Cena", credits: 200 },
   ]);
   const [created] = await db.select().from(profiles).where(eq(profiles.userId, user.id)).limit(1);
   return created ?? null;

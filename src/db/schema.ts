@@ -25,6 +25,8 @@ export const profiles = pgTable("profiles", {
   hasCar: boolean("has_car").default(true).notNull(),
   /** Último precio del combustible introducido (€/l). Se reutiliza en el siguiente viaje. */
   fuelPricePerL: numeric("fuel_price_per_l", { precision: 6, scale: 3 }).default("1.650").notNull(),
+  /** Valor de 1 crédito en € de combustible (al conducir tú). */
+  euroPerCredit: numeric("euro_per_credit", { precision: 5, scale: 3 }).default("0.100").notNull(),
   /** Consumo del coche (l/100 km). */
   consumptionL100: numeric("consumption_l100", { precision: 5, scale: 2 }).default("6.50").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

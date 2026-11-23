@@ -59,6 +59,7 @@ const profileSchema = z.object({
   hasCar: z.boolean(),
   fuelPricePerL: z.number().min(0.3).max(5),
   consumptionL100: z.number().min(1).max(30),
+  euroPerCredit: z.number().min(0.01).max(5),
 });
 
 export async function updateProfile(input: z.infer<typeof profileSchema>): Promise<ActionResult> {
@@ -72,6 +73,7 @@ export async function updateProfile(input: z.infer<typeof profileSchema>): Promi
       hasCar: p.data.hasCar,
       fuelPricePerL: p.data.fuelPricePerL.toFixed(3),
       consumptionL100: p.data.consumptionL100.toFixed(2),
+      euroPerCredit: p.data.euroPerCredit.toFixed(3),
       updatedAt: new Date(),
     })
     .where(eq(profiles.userId, me.userId));
@@ -170,7 +172,7 @@ export async function addTrip(input: z.input<typeof tripSchema>): Promise<Action
   if (!driver.hasCar) return fail(`${driver.name} no tiene coche`);
   const consumption = Number(driver.consumptionL100);
 
-  const credits = creditsForTrip(t.distanceKm, t.fuelPricePerL, consumption);
+  const credits = creditsForTrip(t.distanceKm, t.fuelPricePerL, consumption, Number(driver.euroPerCredit));
   const split = splitCredits(credits, passengerIds.length);
   const tripId = crypto.randomUUID();
 
@@ -233,6 +235,14 @@ export async function addReward(input: z.input<typeof rewardSchema>): Promise<Ac
   const p = rewardSchema.safeParse(input);
   if (!p.success) return fail(p.error.issues[0].message);
   await db.insert(rewards).values({ ownerId: me.userId, ...p.data });
+  return done();
+}
+
+export async function updateReward(id: string, input: z.input<typeof rewardSchema>): Promise<ActionResult> {
+  const me = await requireProfile();
+  const p = rewardSchema.safeParse(input);
+  if (!p.success) return fail(p.error.issues[0].message);
+  await db.update(rewards).set(p.data).where(and(eq(rewards.id, id), eq(rewards.ownerId, me.userId)));
   return done();
 }
 

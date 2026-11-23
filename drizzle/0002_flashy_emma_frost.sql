@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "euro_per_credit" numeric(5, 3) DEFAULT '0.100' NOT NULL;

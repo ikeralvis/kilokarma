@@ -53,7 +53,7 @@ export function TripSheet({
   const passengerIds = driverId === me.id ? riders.filter((r) => r !== me.id) : [...new Set([me.id, ...riders])].filter((r) => r !== driverId);
   const distance = num(km);
   const priceNum = num(price);
-  const credits = creditsForTrip(distance || 0, priceNum || 0, driverVehicle.consumptionL100);
+  const credits = creditsForTrip(distance || 0, priceNum || 0, driverVehicle.consumptionL100, driverVehicle.euroPerCredit);
   const split = splitCredits(credits, passengerIds.length);
   const nameOf = (id: string) => (id === me.id ? "Tú" : (friends.find((f) => f.id === id)?.name ?? "?"));
   const valid = driverId !== "" && destination.trim() !== "" && distance > 0 && priceNum > 0 && passengerIds.length > 0;
