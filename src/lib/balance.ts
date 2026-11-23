@@ -28,10 +28,6 @@ export function splitCredits(total: number, n: number): number[] {
   return Array.from({ length: n }, (_, i) => base + (i < remainder ? 1 : 0));
 }
 
-export function creditsForDistance(distanceKm: number, creditsPerKm: number): number {
-  return Math.max(0, Math.round(distanceKm * creditsPerKm));
-}
-
 export function buildLedger(trips: TripInput[], redemptions: RedemptionInput[]): LedgerEntry[] {
   const entries: LedgerEntry[] = [];
   for (const t of trips) {

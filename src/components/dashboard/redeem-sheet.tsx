@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { redeem } from "@/app/actions";
+import { Chip, Field, inputCls, SubmitButton } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/sheet";
+import { useRun } from "@/components/use-run";
 import type { PairBalance } from "@/lib/balance";
-import type { Member } from "@/lib/mock";
-import { cn, fmtCredits } from "@/lib/utils";
-
-export type NewRedemption = { toUserId: string; concept: string; credits: number };
+import type { Person } from "@/lib/types";
+import { fmtCredits } from "@/lib/utils";
 
 const QUICK = [
   { label: "−15 cr. Cañas", credits: 15, concept: "Cañas" },
@@ -16,21 +17,20 @@ const QUICK = [
 export function RedeemSheet({
   open,
   onClose,
-  members,
+  people,
   pairs,
-  onSubmit,
 }: {
   open: boolean;
   onClose: () => void;
-  members: Member[];
-  /** Saldos de «yo» contra cada miembro. Se invita a quien se le debe (net < 0). */
+  people: Person[];
+  /** Saldos de «yo» contra cada persona. Se invita a quien se le debe (net < 0). */
   pairs: PairBalance[];
-  onSubmit: (r: NewRedemption) => void;
 }) {
   const creditors = pairs.filter((p) => p.net < 0);
   const [toUserId, setTo] = useState(creditors[0]?.userId ?? "");
   const [concept, setConcept] = useState("");
   const [credits, setCredits] = useState("");
+  const { run, pending, error } = useRun();
 
   const owed = -(pairs.find((p) => p.userId === toUserId)?.net ?? 0);
   const amount = Number(credits);
@@ -45,34 +45,18 @@ export function RedeemSheet({
           className="space-y-5"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!valid) return;
-            onSubmit({ toUserId, concept: concept.trim(), credits: amount });
-            onClose();
+            if (valid) run(() => redeem({ toUserId, concept, credits: amount }), onClose);
           }}
         >
-          <div className="space-y-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted">¿A quién invitas?</span>
+          <Field label="¿A quién invitas?">
             <div className="flex flex-wrap gap-2">
-              {creditors.map((p) => {
-                const m = members.find((x) => x.id === p.userId)!;
-                const active = toUserId === p.userId;
-                return (
-                  <button
-                    key={p.userId}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setTo(p.userId)}
-                    className={cn(
-                      "h-10 rounded-full border px-4 text-sm font-medium",
-                      active ? "border-accent bg-accent text-accent-fg" : "border-line bg-bg",
-                    )}
-                  >
-                    {m.name} · {fmtCredits(-p.net)}
-                  </button>
-                );
-              })}
+              {creditors.map((p) => (
+                <Chip key={p.userId} active={toUserId === p.userId} onClick={() => setTo(p.userId)}>
+                  {people.find((x) => x.id === p.userId)?.name} · {fmtCredits(-p.net)}
+                </Chip>
+              ))}
             </div>
-          </div>
+          </Field>
 
           <div className="flex flex-wrap gap-2">
             {QUICK.map((q) => (
@@ -101,28 +85,20 @@ export function RedeemSheet({
           </div>
 
           <div className="grid grid-cols-[1fr_6rem] gap-3">
-            <input
-              value={concept}
-              onChange={(e) => setConcept(e.target.value)}
-              placeholder="Concepto (dos rondas…)"
-              className="h-12 rounded-2xl border border-line bg-bg px-4 text-base outline-none focus:border-accent"
-            />
+            <input value={concept} onChange={(e) => setConcept(e.target.value)} placeholder="Concepto (dos rondas…)" className={inputCls} />
             <input
               value={credits}
               onChange={(e) => setCredits(e.target.value.replace(/\D/g, ""))}
               inputMode="numeric"
               placeholder="cr."
-              className="h-12 rounded-2xl border border-line bg-bg px-4 text-base outline-none focus:border-accent"
+              className={inputCls}
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={!valid}
-            className="h-12 w-full rounded-2xl bg-accent font-semibold text-accent-fg transition active:scale-[.98] disabled:opacity-40"
-          >
+          {error && <p role="alert" className="text-sm text-accent-text">{error}</p>}
+          <SubmitButton disabled={!valid} pending={pending}>
             Registrar invitación
-          </button>
+          </SubmitButton>
         </form>
       )}
     </Sheet>

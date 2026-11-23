@@ -1,20 +1,12 @@
 import { Gift } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
-import type { PairBalance } from "@/lib/balance";
-import { rewardProgress } from "@/lib/balance";
-import type { Member } from "@/lib/mock";
+import { rewardProgress, type PairBalance } from "@/lib/balance";
+import { REWARD_THRESHOLD } from "@/lib/credits";
+import type { Person } from "@/lib/types";
 import { fmtCredits } from "@/lib/utils";
 
-export function BalanceCard({
-  pairs,
-  members,
-  threshold,
-}: {
-  pairs: PairBalance[];
-  members: Member[];
-  threshold: number;
-}) {
-  const byId = new Map(members.map((m) => [m.id, m]));
+export function BalanceCard({ pairs, people, hasFriends }: { pairs: PairBalance[]; people: Person[]; hasFriends: boolean }) {
+  const byId = new Map(people.map((m) => [m.id, m]));
   const total = pairs.reduce((a, p) => a + p.net, 0);
   const sorted = [...pairs].sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
 
@@ -30,10 +22,13 @@ export function BalanceCard({
         {total > 0 ? "Te deben en total" : total < 0 ? "Debes en total" : "Estáis en paz"}
       </p>
 
+      {!hasFriends && <p className="mt-5 rounded-2xl bg-surface-2 p-3 text-sm text-muted">Añade a un amigo para empezar a registrar viajes.</p>}
+
       <ul className="mt-5 space-y-4">
         {sorted.map((p) => {
-          const m = byId.get(p.userId)!;
-          const { progress, remaining, rewards } = rewardProgress(p.net, threshold);
+          const m = byId.get(p.userId);
+          if (!m) return null;
+          const { progress, remaining, rewards } = rewardProgress(p.net, REWARD_THRESHOLD);
           const theyOwe = p.net > 0;
           return (
             <li key={p.userId}>
@@ -50,10 +45,8 @@ export function BalanceCard({
                   {p.net !== 0 && (
                     <p className="flex items-center gap-1 text-xs text-muted">
                       <Gift size={12} />
-                      {rewards > 0
-                        ? `${rewards} ${rewards === 1 ? "ronda lista" : "rondas listas"} · `
-                        : ""}
-                      {remaining} cr. para la próxima ({threshold} = 1 menú)
+                      {rewards > 0 ? `${rewards} ${rewards === 1 ? "ronda lista" : "rondas listas"} · ` : ""}
+                      {remaining} cr. para la próxima ({REWARD_THRESHOLD} = 1 menú)
                     </p>
                   )}
                 </div>

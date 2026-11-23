@@ -1,155 +1,121 @@
 "use client";
 
-import { Car, Check, ChevronDown, Dumbbell, Home, Link2, Plane, Plus, Utensils, Waves, type LucideIcon } from "lucide-react";
+import { Car, Fuel, LogOut, Plus, Star, Trash2, Users, Utensils } from "lucide-react";
 import { useMemo, useState } from "react";
-import { balancesFor, buildLedger, creditsForDistance, splitCredits } from "@/lib/balance";
-import type { GroupView, Member, QuickRouteView, RedemptionView, TripView } from "@/lib/mock";
+import { deleteFavorite, signOutAction } from "@/app/actions";
+import { Avatar } from "@/components/ui/avatar";
+import { useRun } from "@/components/use-run";
+import { balancesFor, buildLedger } from "@/lib/balance";
+import type { DashboardData, FavoriteView } from "@/lib/types";
 import { BalanceCard } from "./balance-card";
-import { RedeemSheet, type NewRedemption } from "./redeem-sheet";
+import { FriendsSheet } from "./friends-sheet";
+import { RedeemSheet } from "./redeem-sheet";
 import { Timeline } from "./timeline";
-import { TripSheet, type NewTrip } from "./trip-sheet";
+import { TripSheet } from "./trip-sheet";
+import { VehicleSheet } from "./vehicle-sheet";
 
-const ICONS: Record<string, LucideIcon> = { home: Home, dumbbell: Dumbbell, waves: Waves, plane: Plane, car: Car };
+type Sheets = "trip" | "redeem" | "friends" | "vehicle" | null;
 
-type Props = {
-  meId: string;
-  groups: GroupView[];
-  members: Member[];
-  quickRoutes: QuickRouteView[];
-  trips: TripView[];
-  redemptions: RedemptionView[];
-};
+export function Dashboard({ data }: { data: DashboardData }) {
+  const { me, friends, people } = data;
+  const [sheet, setSheet] = useState<Sheets>(null);
+  const [preset, setPreset] = useState<FavoriteView | null>(null);
+  const [n, setN] = useState(0); // fuerza a remontar los formularios en cada apertura
+  const { run, pending } = useRun();
 
-/**
- * Estado local sobre datos mock. Para conectar a la BD: sustituir `addTrip`,
- * `addRedemption` por Server Actions (+ `revalidatePath`) y pasar los datos desde
- * el Server Component `page.tsx` con queries de Drizzle.
- */
-export function Dashboard(props: Props) {
-  const { meId, groups, members } = props;
-  const [groupId, setGroupId] = useState(groups[0].id);
-  const [trips, setTrips] = useState(props.trips);
-  const [redemptions, setRedemptions] = useState(props.redemptions);
-  const [quickRoutes, setQuickRoutes] = useState(props.quickRoutes);
-  const [tripSheet, setTripSheet] = useState<{ open: boolean; preset: QuickRouteView | null; n: number }>({ open: false, preset: null, n: 0 });
-  const [redeemOpen, setRedeemOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const ledger = useMemo(() => buildLedger(data.trips, data.redemptions), [data.trips, data.redemptions]);
+  // Amigos actuales + cualquiera con quien aún haya saldo pendiente.
+  const pairs = useMemo(() => {
+    const all = balancesFor(ledger, me.id, people.map((p) => p.id));
+    const friendIds = new Set(friends.map((f) => f.id));
+    return all.filter((p) => friendIds.has(p.userId) || p.net !== 0);
+  }, [ledger, me.id, people, friends]);
 
-  const group = groups.find((g) => g.id === groupId)!;
-  const ledger = useMemo(() => buildLedger(trips, redemptions), [trips, redemptions]);
-  const pairs = useMemo(() => balancesFor(ledger, meId, members.map((m) => m.id)), [ledger, meId, members]);
-
-  function addTrip(t: NewTrip) {
-    const total = creditsForDistance(t.distanceKm, group.creditsPerKm);
-    const split = splitCredits(total, t.passengerIds.length);
-    setTrips((prev) => [
-      {
-        id: crypto.randomUUID(),
-        driverId: t.driverId,
-        title: t.title,
-        distanceKm: t.distanceKm,
-        totalCredits: total,
-        passengers: t.passengerIds.map((id, i) => ({ passengerId: id, creditsOwed: split[i] })),
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
-    if (t.saveAsQuickRoute) {
-      setQuickRoutes((q) => [...q, { id: crypto.randomUUID(), name: t.title, distanceKm: t.distanceKm, creditsValue: total, icon: "car" }]);
-    }
-  }
-
-  function addRedemption(r: NewRedemption) {
-    setRedemptions((prev) => [
-      { id: crypto.randomUUID(), fromUserId: meId, toUserId: r.toUserId, concept: r.concept, creditsRedeemed: r.credits, createdAt: new Date().toISOString() },
-      ...prev,
-    ]);
-  }
-
-  async function copyInvite() {
-    const url = `${window.location.origin}/invite/${group.inviteCode}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      window.prompt("Copia el enlace de invitación", url);
-    }
-  }
+  const open = (s: Exclude<Sheets, null>, p: FavoriteView | null = null) => {
+    setPreset(p);
+    setN((x) => x + 1);
+    setSheet(s);
+  };
+  const close = () => setSheet(null);
+  const friendName = (id: string | null) => friends.find((f) => f.id === id)?.name;
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-5 px-4 pb-32 pt-[max(1rem,env(safe-area-inset-top))]">
-      <header className="relative flex items-center justify-between">
-        <button
-          onClick={() => setMenuOpen((o) => !o)}
-          aria-expanded={menuOpen}
-          className="flex h-11 items-center gap-2 rounded-full border border-line bg-surface pl-4 pr-3 text-sm font-semibold"
-        >
-          <Car size={16} className="text-accent-text" />
-          {group.name}
-          <ChevronDown size={16} className="text-muted" />
-        </button>
-        <button onClick={copyInvite} className="flex h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium">
-          {copied ? <Check size={16} className="text-positive" /> : <Link2 size={16} />}
-          {copied ? "Copiado" : "Invitar"}
-        </button>
-        {menuOpen && (
-          <ul className="absolute left-0 top-13 z-20 w-64 overflow-hidden rounded-2xl border border-line bg-surface shadow-xl">
-            {groups.map((g) => (
-              <li key={g.id}>
-                <button
-                  onClick={() => {
-                    setGroupId(g.id);
-                    setMenuOpen(false);
-                  }}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left text-sm hover:bg-surface-2"
-                >
-                  {g.name}
-                  {g.id === groupId && <Check size={16} className="text-accent-text" />}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+      <header className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <Avatar name={me.name} id={me.id} size={40} />
+          <div>
+            <p className="text-xs text-muted">Hola</p>
+            <p className="text-sm font-semibold leading-tight">{me.name}</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <HeaderBtn label="Mi coche" onClick={() => open("vehicle")}>
+            <Fuel size={18} />
+          </HeaderBtn>
+          <HeaderBtn label="Amigos" onClick={() => open("friends")} badge={data.pending.length}>
+            <Users size={18} />
+          </HeaderBtn>
+          <form action={signOutAction}>
+            <HeaderBtn label="Salir" submit>
+              <LogOut size={18} />
+            </HeaderBtn>
+          </form>
+        </div>
       </header>
 
-      <BalanceCard pairs={pairs} members={members} threshold={group.rewardThreshold} />
+      <BalanceCard pairs={pairs} people={people} hasFriends={friends.length > 0} />
 
       <section>
-        <h2 className="mb-3 px-1 text-xs font-medium uppercase tracking-wider text-muted">Acciones rápidas</h2>
-        <div className="grid grid-cols-2 gap-3">
-          {quickRoutes.map((q) => {
-            const Icon = ICONS[q.icon] ?? Car;
-            return (
-              <button
-                key={q.id}
-                onClick={() => setTripSheet((s) => ({ open: true, preset: q, n: s.n + 1 }))}
-                className="flex min-h-24 flex-col justify-between rounded-3xl border border-line bg-surface p-4 text-left transition active:scale-[.97] active:bg-surface-2"
-              >
-                <Icon size={20} className="text-muted" />
-                <span>
-                  <span className="block text-sm font-semibold leading-tight">{q.name}</span>
-                  <span className="text-xs font-medium text-accent-text">+{q.creditsValue} cr.</span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <h2 className="mb-3 flex items-center gap-1.5 px-1 text-xs font-medium uppercase tracking-wider text-muted">
+          <Star size={12} /> Viajes favoritos
+        </h2>
+        {data.favorites.length === 0 ? (
+          <p className="rounded-3xl border border-dashed border-line p-4 text-sm text-muted">
+            Al registrar un trayecto marca «Guardar como viaje favorito» y lo tendrás aquí a un toque.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {data.favorites.map((f) => (
+              <div key={f.id} className="group relative">
+                <button
+                  onClick={() => open("trip", f)}
+                  className="flex min-h-24 w-full flex-col justify-between rounded-3xl border border-line bg-surface p-4 text-left transition active:scale-[.97] active:bg-surface-2"
+                >
+                  <Car size={20} className="text-muted" />
+                  <span>
+                    <span className="block text-sm font-semibold leading-tight">{f.name}</span>
+                    <span className="text-xs text-muted">
+                      {f.distanceKm} km{friendName(f.friendId) ? ` · ${friendName(f.friendId)}` : ""}
+                    </span>
+                  </span>
+                </button>
+                <button
+                  aria-label={`Borrar ${f.name}`}
+                  disabled={pending}
+                  onClick={() => confirm(`¿Borrar el favorito «${f.name}»?`) && run(() => deleteFavorite(f.id))}
+                  className="absolute right-2 top-2 grid size-7 place-items-center rounded-full text-muted opacity-60 hover:bg-surface-2"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
-      <Timeline trips={trips} redemptions={redemptions} members={members} meId={meId} />
+      <Timeline trips={data.trips} redemptions={data.redemptions} people={people} meId={me.id} />
 
       <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-bg via-bg/90 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8">
         <div className="mx-auto flex max-w-md gap-3">
           <button
-            onClick={() => setTripSheet((s) => ({ open: true, preset: null, n: s.n + 1 }))}
+            onClick={() => open("trip")}
             className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-accent font-semibold text-accent-fg transition active:scale-[.97]"
           >
             <Plus size={20} /> Trayecto
           </button>
           <button
-            onClick={() => setRedeemOpen(true)}
+            onClick={() => open("redeem")}
             className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-line bg-surface font-semibold transition active:scale-[.97]"
           >
             <Utensils size={18} /> Canjear
@@ -157,24 +123,38 @@ export function Dashboard(props: Props) {
         </div>
       </div>
 
-      <TripSheet
-        key={tripSheet.n}
-        open={tripSheet.open}
-        onClose={() => setTripSheet((s) => ({ ...s, open: false }))}
-        members={members}
-        meId={meId}
-        creditsPerKm={group.creditsPerKm}
-        preset={tripSheet.preset}
-        onSubmit={addTrip}
-      />
-      <RedeemSheet
-        key={`${redeemOpen}-${redemptions.length}`}
-        open={redeemOpen}
-        onClose={() => setRedeemOpen(false)}
-        members={members}
-        pairs={pairs}
-        onSubmit={addRedemption}
-      />
+      {sheet === "trip" && <TripSheet key={n} open onClose={close} me={me} vehicle={data.vehicle} friends={friends} preset={preset} />}
+      {sheet === "redeem" && <RedeemSheet key={n} open onClose={close} people={people} pairs={pairs} />}
+      {sheet === "friends" && <FriendsSheet open onClose={close} data={data} />}
+      {sheet === "vehicle" && <VehicleSheet key={n} open onClose={close} vehicle={data.vehicle} />}
     </div>
+  );
+}
+
+function HeaderBtn({
+  label,
+  onClick,
+  badge = 0,
+  submit,
+  children,
+}: {
+  label: string;
+  onClick?: () => void;
+  badge?: number;
+  submit?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type={submit ? "submit" : "button"}
+      aria-label={label}
+      onClick={onClick}
+      className="relative grid size-11 place-items-center rounded-full border border-line bg-surface"
+    >
+      {children}
+      {badge > 0 && (
+        <span className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">{badge}</span>
+      )}
+    </button>
   );
 }

@@ -1,4 +1,3 @@
-import { relations } from "drizzle-orm";
 import {
   index,
   integer,
@@ -11,79 +10,64 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const memberRole = pgEnum("member_role", ["admin", "member"]);
-
-/** Better Auth gestiona sus propias tablas (session/account/verification);
- *  `users` es la tabla de usuario que le pasamos al adapter de Drizzle. */
-export const users = pgTable("users", {
-  id: text("id").primaryKey(),
+/**
+ * Los usuarios los gestiona Neon Auth (esquema `neon_auth`). Aquí guardamos su id como
+ * texto (sin FK entre esquemas) y un `profile` con nombre, email y datos del coche.
+ */
+export const profiles = pgTable("profiles", {
+  userId: text("user_id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  emailVerified: integer("email_verified").default(0).notNull(),
-  image: text("image"),
+  /** Código para el enlace de amistad /invite/[code]. */
+  friendCode: text("friend_code").notNull().unique(),
+  /** Último precio del combustible introducido (€/l). Se reutiliza en el siguiente viaje. */
+  fuelPricePerL: numeric("fuel_price_per_l", { precision: 6, scale: 3 }).default("1.650").notNull(),
+  /** Consumo del coche (l/100 km). */
+  consumptionL100: numeric("consumption_l100", { precision: 5, scale: 2 }).default("6.50").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const groups = pgTable("groups", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  inviteCode: text("invite_code").notNull().unique(),
-  /** Factor de conversión km → créditos. */
-  defaultCreditsPerKm: numeric("default_credits_per_km", { precision: 6, scale: 2 })
-    .default("1")
-    .notNull(),
-  createdBy: text("created_by")
-    .notNull()
-    .references(() => users.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const friendStatus = pgEnum("friend_status", ["pending", "accepted"]);
 
-export const groupMembers = pgTable(
-  "group_members",
+export const friendships = pgTable(
+  "friendships",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    groupId: uuid("group_id")
+    requesterId: text("requester_id")
       .notNull()
-      .references(() => groups.id, { onDelete: "cascade" }),
-    userId: text("user_id")
+      .references(() => profiles.userId, { onDelete: "cascade" }),
+    addresseeId: text("addressee_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    role: memberRole("role").default("member").notNull(),
-    joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
+      .references(() => profiles.userId, { onDelete: "cascade" }),
+    status: friendStatus("status").default("pending").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("group_members_unique").on(t.groupId, t.userId)],
+  (t) => [uniqueIndex("friendships_pair_unique").on(t.requesterId, t.addresseeId)],
 );
-
-export const quickRoutes = pgTable("quick_routes", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  groupId: uuid("group_id")
-    .notNull()
-    .references(() => groups.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  distanceKm: numeric("distance_km", { precision: 8, scale: 2 }).notNull(),
-  creditsValue: integer("credits_value").notNull(),
-  icon: text("icon").default("car").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
 
 export const trips = pgTable(
   "trips",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    groupId: uuid("group_id")
+    createdBy: text("created_by")
       .notNull()
-      .references(() => groups.id, { onDelete: "cascade" }),
+      .references(() => profiles.userId),
     driverId: text("driver_id")
       .notNull()
-      .references(() => users.id),
-    title: text("title").notNull(),
+      .references(() => profiles.userId),
+    origin: text("origin").notNull().default(""),
+    destination: text("destination").notNull(),
     distanceKm: numeric("distance_km", { precision: 8, scale: 2 }).notNull(),
+    /** Foto del precio y consumo usados: los viajes antiguos no se recalculan. */
+    fuelPricePerL: numeric("fuel_price_per_l", { precision: 6, scale: 3 }).notNull(),
+    consumptionL100: numeric("consumption_l100", { precision: 5, scale: 2 }).notNull(),
+    costEur: numeric("cost_eur", { precision: 8, scale: 2 }).notNull(),
     totalCredits: integer("total_credits").notNull(),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("trips_group_created_idx").on(t.groupId, t.createdAt)],
+  (t) => [index("trips_driver_idx").on(t.driverId), index("trips_created_idx").on(t.createdAt)],
 );
 
 export const tripPassengers = pgTable(
@@ -95,62 +79,50 @@ export const tripPassengers = pgTable(
       .references(() => trips.id, { onDelete: "cascade" }),
     passengerId: text("passenger_id")
       .notNull()
-      .references(() => users.id),
+      .references(() => profiles.userId),
     /** Créditos que este pasajero suma a favor del conductor. */
     creditsOwed: integer("credits_owed").notNull(),
   },
-  (t) => [uniqueIndex("trip_passengers_unique").on(t.tripId, t.passengerId)],
+  (t) => [
+    uniqueIndex("trip_passengers_unique").on(t.tripId, t.passengerId),
+    index("trip_passengers_passenger_idx").on(t.passengerId),
+  ],
 );
+
+/** Viajes favoritos: plantillas personales para registrar con un toque. */
+export const favorites = pgTable("favorites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => profiles.userId, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  origin: text("origin").notNull().default(""),
+  destination: text("destination").notNull(),
+  distanceKm: numeric("distance_km", { precision: 8, scale: 2 }).notNull(),
+  /** Amigo habitual en este trayecto (opcional). */
+  friendId: text("friend_id").references(() => profiles.userId, { onDelete: "set null" }),
+  /** Quién suele conducir: 'me' o 'friend'. */
+  driver: text("driver").default("me").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const redemptions = pgTable(
   "redemptions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    groupId: uuid("group_id")
-      .notNull()
-      .references(() => groups.id, { onDelete: "cascade" }),
     /** Quien invita (el que debía créditos). */
     fromUserId: text("from_user_id")
       .notNull()
-      .references(() => users.id),
+      .references(() => profiles.userId),
     /** El conductor al que se invita. */
     toUserId: text("to_user_id")
       .notNull()
-      .references(() => users.id),
+      .references(() => profiles.userId),
     concept: text("concept").notNull(),
     creditsRedeemed: integer("credits_redeemed").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("redemptions_group_created_idx").on(t.groupId, t.createdAt)],
+  (t) => [index("redemptions_from_idx").on(t.fromUserId), index("redemptions_to_idx").on(t.toUserId)],
 );
 
-export const groupsRelations = relations(groups, ({ many }) => ({
-  members: many(groupMembers),
-  quickRoutes: many(quickRoutes),
-  trips: many(trips),
-  redemptions: many(redemptions),
-}));
-
-export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
-  group: one(groups, { fields: [groupMembers.groupId], references: [groups.id] }),
-  user: one(users, { fields: [groupMembers.userId], references: [users.id] }),
-}));
-
-export const tripsRelations = relations(trips, ({ one, many }) => ({
-  group: one(groups, { fields: [trips.groupId], references: [groups.id] }),
-  driver: one(users, { fields: [trips.driverId], references: [users.id] }),
-  passengers: many(tripPassengers),
-}));
-
-export const tripPassengersRelations = relations(tripPassengers, ({ one }) => ({
-  trip: one(trips, { fields: [tripPassengers.tripId], references: [trips.id] }),
-  passenger: one(users, { fields: [tripPassengers.passengerId], references: [users.id] }),
-}));
-
-export type User = typeof users.$inferSelect;
-export type Group = typeof groups.$inferSelect;
-export type GroupMember = typeof groupMembers.$inferSelect;
-export type QuickRoute = typeof quickRoutes.$inferSelect;
-export type Trip = typeof trips.$inferSelect;
-export type TripPassenger = typeof tripPassengers.$inferSelect;
-export type Redemption = typeof redemptions.$inferSelect;
+export type Profile = typeof profiles.$inferSelect;

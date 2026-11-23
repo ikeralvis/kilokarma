@@ -1,18 +1,22 @@
+import { Suspense } from "react";
 import { Dashboard } from "@/components/dashboard/dashboard";
-import { ME, mockGroups, mockMembers, mockQuickRoutes, mockRedemptions, mockTrips } from "@/lib/mock";
+import { getDashboard } from "@/lib/data";
+import { requireProfile } from "@/lib/session";
 
-// TODO: sustituir los mocks por queries de Drizzle (sesión de Better Auth → grupos del usuario).
 export default function Home() {
   return (
+    <Suspense fallback={<div className="grid min-h-dvh place-items-center text-sm text-muted">Cargando…</div>}>
+      <Data />
+    </Suspense>
+  );
+}
+
+async function Data() {
+  const me = await requireProfile("/");
+  const data = await getDashboard(me);
+  return (
     <main>
-      <Dashboard
-        meId={ME}
-        groups={mockGroups}
-        members={mockMembers}
-        quickRoutes={mockQuickRoutes}
-        trips={mockTrips}
-        redemptions={mockRedemptions}
-      />
+      <Dashboard data={data} />
     </main>
   );
 }

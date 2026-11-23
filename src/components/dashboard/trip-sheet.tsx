@@ -1,49 +1,60 @@
 "use client";
 
 import { useState } from "react";
+import { addTrip } from "@/app/actions";
+import { Chip, Field, inputCls, SubmitButton } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/sheet";
-import { creditsForDistance, splitCredits } from "@/lib/balance";
-import type { Member, QuickRouteView } from "@/lib/mock";
-import { cn } from "@/lib/utils";
+import { useRun } from "@/components/use-run";
+import { splitCredits } from "@/lib/balance";
+import { costPerKm, creditsForTrip } from "@/lib/credits";
+import type { FavoriteView, FriendView, Person, VehicleView } from "@/lib/types";
 
-export type NewTrip = {
-  title: string;
-  distanceKm: number;
-  driverId: string;
-  passengerIds: string[];
-  saveAsQuickRoute: boolean;
-};
+const num = (s: string) => Number(s.replace(",", "."));
 
 export function TripSheet({
   open,
   onClose,
-  members,
-  meId,
-  creditsPerKm,
+  me,
+  vehicle,
+  friends,
   preset,
-  onSubmit,
 }: {
   open: boolean;
   onClose: () => void;
-  members: Member[];
-  meId: string;
-  creditsPerKm: number;
-  /** Ruta rápida: título y km vienen fijados. */
-  preset?: QuickRouteView | null;
-  onSubmit: (t: NewTrip) => void;
+  me: Person;
+  vehicle: VehicleView;
+  friends: FriendView[];
+  /** Favorito: rellena todo para registrar con un toque. */
+  preset?: FavoriteView | null;
 }) {
-  // El padre monta este componente con `key` distinto por preset → el estado se reinicia solo.
-  const [title, setTitle] = useState(preset?.name ?? "");
-  const [km, setKm] = useState(preset ? String(preset.distanceKm) : "");
-  const [driverId, setDriverId] = useState(meId);
-  const [riders, setRiders] = useState<string[]>([]);
-  const [save, setSave] = useState(false);
+  // El padre monta este componente con `key` distinto por apertura → el estado se reinicia solo.
+  const presetFriend = preset?.friendId && friends.some((f) => f.id === preset.friendId) ? preset.friendId : null;
+  const soleFriend = friends.length === 1 ? friends[0].id : null;
+  const defaultFriend = presetFriend ?? soleFriend;
 
-  const distance = Number(km.replace(",", "."));
-  const total = creditsForDistance(distance || 0, creditsPerKm);
-  const passengerIds = riders.filter((id) => id !== driverId);
-  const split = splitCredits(total, passengerIds.length);
-  const valid = title.trim().length > 0 && distance > 0 && passengerIds.length > 0;
+  const [origin, setOrigin] = useState(preset?.origin ?? "");
+  const [destination, setDestination] = useState(preset?.destination ?? "");
+  const [km, setKm] = useState(preset ? String(preset.distanceKm) : "");
+  const [driverId, setDriverId] = useState(preset?.driver === "friend" && presetFriend ? presetFriend : me.id);
+  const [riders, setRiders] = useState<string[]>(defaultFriend && preset?.driver !== "friend" ? [defaultFriend] : []);
+  const [priceEdit, setPriceEdit] = useState<string | null>(null);
+  const [favName, setFavName] = useState("");
+  const [saveFav, setSaveFav] = useState(false);
+  const { run, pending, error } = useRun();
+
+  const driverVehicle = driverId === me.id ? vehicle : (friends.find((f) => f.id === driverId) ?? vehicle);
+  const price = priceEdit ?? String(driverVehicle.fuelPricePerL);
+
+  // Si conduce un amigo, tú vas siempre de acompañante.
+  const passengerIds = driverId === me.id ? riders.filter((r) => r !== me.id) : [...new Set([me.id, ...riders])].filter((r) => r !== driverId);
+  const distance = num(km);
+  const priceNum = num(price);
+  const credits = creditsForTrip(distance || 0, priceNum || 0, driverVehicle.consumptionL100);
+  const split = splitCredits(credits, passengerIds.length);
+  const nameOf = (id: string) => (id === me.id ? "Tú" : (friends.find((f) => f.id === id)?.name ?? "?"));
+  const valid = destination.trim() !== "" && distance > 0 && priceNum > 0 && passengerIds.length > 0;
+
+  const everyone = [{ id: me.id, name: "Yo" }, ...friends.map((f) => ({ id: f.id, name: f.name }))];
 
   return (
     <Sheet open={open} onClose={onClose} title={preset ? preset.name : "Nuevo trayecto"}>
@@ -52,103 +63,95 @@ export function TripSheet({
         onSubmit={(e) => {
           e.preventDefault();
           if (!valid) return;
-          onSubmit({ title: title.trim(), distanceKm: distance, driverId, passengerIds, saveAsQuickRoute: save });
-          onClose();
+          run(
+            () =>
+              addTrip({
+                origin,
+                destination,
+                distanceKm: distance,
+                driverId,
+                passengerIds,
+                fuelPricePerL: priceNum,
+                saveFavorite: saveFav ? favName.trim() || destination.trim() : undefined,
+              }),
+            onClose,
+          );
         }}
       >
-        {!preset && (
-          <div className="grid grid-cols-[1fr_6rem] gap-3">
-            <Field label="Destino / ruta">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Cena en Getxo" className={inputCls} />
-            </Field>
-            <Field label="Km">
-              <input value={km} onChange={(e) => setKm(e.target.value)} inputMode="decimal" placeholder="0" className={inputCls} />
-            </Field>
-          </div>
-        )}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Origen">
+            <input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Casa" className={inputCls} />
+          </Field>
+          <Field label="Destino">
+            <input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Gym" className={inputCls} />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Kilómetros">
+            <input value={km} onChange={(e) => setKm(e.target.value)} inputMode="decimal" placeholder="0" className={inputCls} />
+          </Field>
+          <Field label="Gasolina €/l">
+            <input value={price} onChange={(e) => setPriceEdit(e.target.value)} inputMode="decimal" className={inputCls} />
+          </Field>
+        </div>
 
         <Field label="¿Quién conducía?">
           <div className="flex flex-wrap gap-2">
-            {members.map((m) => (
+            {everyone.map((m) => (
               <Chip key={m.id} active={driverId === m.id} onClick={() => setDriverId(m.id)}>
-                {m.id === meId ? "Yo" : m.name}
+                {m.name}
               </Chip>
             ))}
           </div>
         </Field>
 
-        <Field label="¿Quién iba de pasajero?">
+        <Field label="¿Quién iba de acompañante?">
           <div className="flex flex-wrap gap-2">
-            {members
+            {everyone
               .filter((m) => m.id !== driverId)
-              .map((m) => (
-                <Chip
-                  key={m.id}
-                  active={riders.includes(m.id)}
-                  onClick={() => setRiders((r) => (r.includes(m.id) ? r.filter((x) => x !== m.id) : [...r, m.id]))}
-                >
-                  {m.id === meId ? "Yo" : m.name}
-                </Chip>
-              ))}
+              .map((m) => {
+                const forced = driverId !== me.id && m.id === me.id;
+                const active = forced || riders.includes(m.id);
+                return (
+                  <Chip
+                    key={m.id}
+                    active={active}
+                    disabled={forced}
+                    onClick={() => setRiders((r) => (r.includes(m.id) ? r.filter((x) => x !== m.id) : [...r, m.id]))}
+                  >
+                    {m.name}
+                  </Chip>
+                );
+              })}
+            {friends.length === 0 && <p className="text-sm text-muted">Primero añade un amigo.</p>}
           </div>
         </Field>
 
         <div className="rounded-2xl bg-surface-2 p-3 text-sm">
           <p className="font-medium tabular-nums">
-            {total} cr. <span className="font-normal text-muted">· {creditsPerKm} cr./km</span>
+            {credits} cr. <span className="font-normal text-muted">· {(distance * costPerKm(priceNum || 0, driverVehicle.consumptionL100) || 0).toFixed(2)} €</span>
           </p>
-          {passengerIds.length > 0 && total > 0 && (
-            <p className="mt-0.5 text-xs text-muted">
-              {passengerIds
-                .map((id, i) => `${members.find((m) => m.id === id)?.name} ${split[i]}`)
-                .join(" · ")}
-            </p>
+          {passengerIds.length > 0 && credits > 0 && (
+            <p className="mt-0.5 text-xs text-muted">{passengerIds.map((id, i) => `${nameOf(id)} ${split[i]}`).join(" · ")}</p>
           )}
         </div>
 
         {!preset && (
-          <label className="flex items-center gap-3 text-sm">
-            <input type="checkbox" checked={save} onChange={(e) => setSave(e.target.checked)} className="size-5 accent-[var(--accent)]" />
-            Guardar como ruta rápida
-          </label>
+          <div className="space-y-2">
+            <label className="flex items-center gap-3 text-sm">
+              <input type="checkbox" checked={saveFav} onChange={(e) => setSaveFav(e.target.checked)} className="size-5 accent-[var(--accent)]" />
+              Guardar como viaje favorito
+            </label>
+            {saveFav && <input value={favName} onChange={(e) => setFavName(e.target.value)} placeholder="Nombre (p. ej. Ir al gym)" className={inputCls} />}
+          </div>
         )}
 
-        <button
-          type="submit"
-          disabled={!valid}
-          className="h-12 w-full rounded-2xl bg-accent font-semibold text-accent-fg transition active:scale-[.98] disabled:opacity-40"
-        >
+        {error && <p role="alert" className="text-sm text-accent-text">{error}</p>}
+        <SubmitButton disabled={!valid} pending={pending}>
           Registrar trayecto
-        </button>
+        </SubmitButton>
       </form>
     </Sheet>
-  );
-}
-
-const inputCls =
-  "h-12 w-full rounded-2xl border border-line bg-bg px-4 text-base outline-none focus:border-accent"; // 16px+ evita zoom en iOS
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-2">
-      <span className="text-xs font-medium uppercase tracking-wider text-muted">{label}</span>
-      {children}
-    </div>
-  );
-}
-
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "h-10 rounded-full border px-4 text-sm font-medium transition active:scale-95",
-        active ? "border-accent bg-accent text-accent-fg" : "border-line bg-bg text-fg",
-      )}
-    >
-      {children}
-    </button>
   );
 }

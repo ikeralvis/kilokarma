@@ -1,8 +1,10 @@
 "use client";
 
-import { Car, Utensils } from "lucide-react";
+import { Car, Trash2, Utensils } from "lucide-react";
 import { useSyncExternalStore } from "react";
-import type { Member, RedemptionView, TripView } from "@/lib/mock";
+import { deleteTrip } from "@/app/actions";
+import { useRun } from "@/components/use-run";
+import type { Person, RedemptionView, TripView } from "@/lib/types";
 import { fmtCredits, timeAgo } from "@/lib/utils";
 
 type Item =
@@ -22,16 +24,17 @@ function useNow(): number | null {
 export function Timeline({
   trips,
   redemptions,
-  members,
+  people,
   meId,
 }: {
   trips: TripView[];
   redemptions: RedemptionView[];
-  members: Member[];
+  people: Person[];
   meId: string;
 }) {
   const now = useNow();
-  const name = (id: string) => (id === meId ? "Tú" : (members.find((m) => m.id === id)?.name ?? "?"));
+  const { run, pending } = useRun();
+  const name = (id: string) => (id === meId ? "Tú" : (people.find((m) => m.id === id)?.name ?? "?"));
   const items: Item[] = [
     ...trips.map((t) => ({ kind: "trip" as const, at: t.createdAt, data: t })),
     ...redemptions.map((r) => ({ kind: "redemption" as const, at: r.createdAt, data: r })),
@@ -53,9 +56,12 @@ export function Timeline({
             <div className="min-w-0 flex-1">
               {it.kind === "trip" ? (
                 <>
-                  <p className="truncate text-sm font-medium">{it.data.title}</p>
+                  <p className="truncate text-sm font-medium">
+                    {it.data.origin ? `${it.data.origin} → ` : ""}
+                    {it.data.destination}
+                  </p>
                   <p className="truncate text-xs text-muted">
-                    {name(it.data.driverId)} conduce · {it.data.distanceKm} km ·{" "}
+                    {name(it.data.driverId)} conduce · {fmtCredits(it.data.distanceKm)} km · {it.data.costEur.toFixed(2)} € ·{" "}
                     {it.data.passengers.map((p) => name(p.passengerId)).join(", ")}
                   </p>
                 </>
@@ -69,18 +75,22 @@ export function Timeline({
               )}
             </div>
             <div className="text-right">
-              <p
-                className={`text-sm font-semibold tabular-nums ${
-                  it.kind === "trip" ? "" : "text-accent-text"
-                }`}
-              >
-                {it.kind === "trip"
-                  ? `+${fmtCredits(it.data.totalCredits)}`
-                  : `−${fmtCredits(it.data.creditsRedeemed)}`}{" "}
+              <p className={`text-sm font-semibold tabular-nums ${it.kind === "trip" ? "" : "text-accent-text"}`}>
+                {it.kind === "trip" ? `+${fmtCredits(it.data.totalCredits)}` : `−${fmtCredits(it.data.creditsRedeemed)}`}{" "}
                 <span className="text-xs font-normal text-muted">cr.</span>
               </p>
               <p className="text-[11px] text-muted">{now === null ? " " : timeAgo(it.at, now)}</p>
             </div>
+            {it.kind === "trip" && (
+              <button
+                aria-label="Borrar viaje"
+                disabled={pending}
+                onClick={() => confirm("¿Borrar este viaje?") && run(() => deleteTrip(it.data.id))}
+                className="grid size-8 place-items-center rounded-full text-muted hover:bg-surface-2"
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
           </li>
         ))}
         {items.length === 0 && <li className="p-6 text-center text-sm text-muted">Aún no hay actividad.</li>}
