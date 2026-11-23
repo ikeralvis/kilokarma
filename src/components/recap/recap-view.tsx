@@ -12,6 +12,7 @@ import { useRun } from "@/components/use-run";
 import { eventXp, nameOf } from "@/lib/recap";
 import type { EventView, RecapData, TripView } from "@/lib/types";
 import { cn, unitFor } from "@/lib/utils";
+import { Onboarding } from "@/components/onboarding/onboarding";
 import { EventSheet } from "./event-sheet";
 import { Ranking } from "./ranking";
 
@@ -26,6 +27,7 @@ export function RecapView({ data }: { data: RecapData }) {
   const [sheet, setSheet] = useState(false);
   const [preset, setPreset] = useState<string | null>(null);
   const [n, setN] = useState(0);
+  const [guideDone, setGuideDone] = useState(false);
   const { run, pending, error } = useRun();
 
   const open = (typeId: string | null = null) => {
@@ -210,6 +212,7 @@ export function RecapView({ data }: { data: RecapData }) {
       </div>
 
       {sheet && <EventSheet key={n} open onClose={() => setSheet(false)} me={me} friends={friends} types={types} events={events} presetTypeId={preset} />}
+      {!me.onboarded && !guideDone && <Onboarding data={data} onDone={() => setGuideDone(true)} />}
       <AutoRefresh />
       <ThemeSync accent={me.accentColor} />
     </div>

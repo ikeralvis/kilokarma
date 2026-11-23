@@ -383,3 +383,10 @@ export async function updateAccent(hex: string): Promise<ActionResult> {
   await db.update(profiles).set({ accentColor: hex.toLowerCase(), updatedAt: new Date() }).where(eq(profiles.userId, me.userId));
   return done();
 }
+
+/** Marca la guía de primera vez como hecha (o la reinicia para volver a verla). */
+export async function setOnboarded(done_: boolean): Promise<ActionResult> {
+  const me = await requireProfile();
+  await db.update(profiles).set({ onboardedAt: done_ ? new Date() : null }).where(eq(profiles.userId, me.userId));
+  return done();
+}

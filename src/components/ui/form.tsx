@@ -53,3 +53,38 @@ export function SubmitButton({ disabled, pending, children }: { disabled?: boole
     </button>
   );
 }
+
+/** Selector de 2‑3 opciones excluyentes, con una línea de ayuda de la opción activa. */
+export function Segmented<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string; help: string }[];
+}) {
+  const active = options.find((o) => o.value === value);
+  return (
+    <div className="space-y-1.5">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted">{label}</span>
+      <div className="grid gap-1 rounded-2xl bg-bg p-1" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }} role="radiogroup" aria-label={label}>
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={value === o.value}
+            onClick={() => onChange(o.value)}
+            className={cn("h-10 rounded-xl text-sm font-medium transition", value === o.value ? "bg-accent text-accent-fg" : "text-muted")}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      {active && <p className="text-xs text-muted">{active.help}</p>}
+    </div>
+  );
+}

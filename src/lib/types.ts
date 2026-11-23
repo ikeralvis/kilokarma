@@ -36,7 +36,7 @@ export type RewardView = { id: string; name: string; credits: number };
 export type VehicleView = { tripXp: number; hasCar: boolean; fuelPricePerL: number; consumptionL100: number; euroPerCredit: number };
 
 export type DashboardData = {
-  me: Person & { friendCode: string; accentColor: string };
+  me: Person & { friendCode: string; accentColor: string; onboarded: boolean };
   vehicle: VehicleView;
   friends: FriendView[];
   pending: PendingRequest[];

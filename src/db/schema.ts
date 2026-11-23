@@ -22,6 +22,8 @@ export const profiles = pgTable("profiles", {
   email: text("email").notNull().unique(),
   /** Código para el enlace de amistad /invite/[code]. */
   friendCode: text("friend_code").notNull().unique(),
+  /** Cuándo terminó (o saltó) la guía de primera vez. */
+  onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
   /** Color de acento elegido (hex). */
   accentColor: text("accent_color").notNull().default("#9ec4f4"),
   /** XP fijo que da cada trayecto en coche cuando conduce este usuario. */

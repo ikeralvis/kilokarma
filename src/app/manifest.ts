@@ -5,6 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Recap",
     short_name: "Recap",
     description: "Diario compartido entre amigos: trayectos, planes y logros.",
+    id: "/",
     start_url: "/",
     scope: "/",
     display: "standalone",

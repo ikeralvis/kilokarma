@@ -1,8 +1,11 @@
 "use client";
 
-import { ArrowLeft, LogOut } from "lucide-react";
+import { ArrowLeft, LogOut, PlayCircle } from "lucide-react";
 import Link from "next/link";
-import { signOutAction } from "@/app/actions";
+import { useRouter } from "next/navigation";
+import { setOnboarded, signOutAction } from "@/app/actions";
+import { InstallCard } from "@/components/install-card";
+import { useRun } from "@/components/use-run";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ThemeSync } from "@/components/theme-toggle";
 import type { RecapData } from "@/lib/types";
@@ -20,10 +23,13 @@ const NAV = [
   ["categorias", "Categorías"],
   ["canjes", "Canjes"],
   ["amigos", "Amigos"],
+  ["app", "App"],
 ];
 
 export function SettingsView({ data }: { data: RecapData }) {
   const { me } = data;
+  const router = useRouter();
+  const { run, pending } = useRun();
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-5 px-4 pb-16 pt-[max(1rem,env(safe-area-inset-top))]">
       <header className="flex items-center gap-3">
@@ -47,6 +53,17 @@ export function SettingsView({ data }: { data: RecapData }) {
       <TypesSection types={data.types} />
       <RewardsSection rewards={data.rewards} />
       <FriendsSection data={data} />
+
+      <Card id="app" title="App" hint="Instálala para abrirla como una app de tu móvil.">
+        <InstallCard />
+        <button
+          disabled={pending}
+          onClick={() => run(() => setOnboarded(false), () => router.push("/"))}
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-line text-sm font-medium"
+        >
+          <PlayCircle size={16} /> Ver la guía de inicio
+        </button>
+      </Card>
 
       <Card id="cuenta" title="Cuenta">
         <form action={signOutAction}>

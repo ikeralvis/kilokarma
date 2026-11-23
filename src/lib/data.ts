@@ -65,7 +65,7 @@ export async function getDashboard(me: Profile): Promise<DashboardData> {
   const person = (id: string) => ({ id, name: byId.get(id)?.name ?? "Usuario" });
 
   return {
-    me: { id: uid, name: me.name, friendCode: me.friendCode, accentColor: me.accentColor },
+    me: { id: uid, name: me.name, friendCode: me.friendCode, accentColor: me.accentColor, onboarded: me.onboardedAt !== null },
     vehicle: { tripXp: me.tripXp, hasCar: me.hasCar, fuelPricePerL: Number(me.fuelPricePerL), consumptionL100: Number(me.consumptionL100), euroPerCredit: Number(me.euroPerCredit) },
     friends: friendIds.map((id) => ({
       ...person(id),
