@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { profiles, type Profile } from "@/db/schema";
+import { profiles, rewards, type Profile } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 import { eq } from "drizzle-orm";
 
@@ -20,6 +20,12 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     .insert(profiles)
     .values({ userId: user.id, name, email: user.email.toLowerCase(), friendCode: randomBytes(6).toString("base64url") })
     .onConflictDoNothing();
+  // Catálogo de canjes inicial (editable en la app).
+  await db.insert(rewards).values([
+    { ownerId: user.id, name: "Pintxo", credits: 5 },
+    { ownerId: user.id, name: "Ronda de cañas", credits: 15 },
+    { ownerId: user.id, name: "Cena", credits: 40 },
+  ]);
   const [created] = await db.select().from(profiles).where(eq(profiles.userId, user.id)).limit(1);
   return created ?? null;
 }

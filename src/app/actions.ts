@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
-import { favorites, friendships, profiles, redemptions, tripPassengers, trips } from "@/db/schema";
+import { favorites, friendships, profiles, redemptions, rewards, tripPassengers, trips } from "@/db/schema";
 import { splitCredits } from "@/lib/balance";
 import { auth } from "@/lib/auth/server";
 import { creditsForTrip, tripCostEur } from "@/lib/credits";
@@ -52,20 +52,28 @@ export async function signOutAction() {
   redirect("/auth/sign-in");
 }
 
-/* ───────── Coche ───────── */
+/* ───────── Perfil y coche ───────── */
 
-const vehicleSchema = z.object({
+const profileSchema = z.object({
+  name: z.string().trim().min(1, "Pon tu nombre").max(60),
+  hasCar: z.boolean(),
   fuelPricePerL: z.number().min(0.3).max(5),
   consumptionL100: z.number().min(1).max(30),
 });
 
-export async function updateVehicle(input: z.infer<typeof vehicleSchema>): Promise<ActionResult> {
+export async function updateProfile(input: z.infer<typeof profileSchema>): Promise<ActionResult> {
   const me = await requireProfile();
-  const p = vehicleSchema.safeParse(input);
-  if (!p.success) return fail("Precio o consumo no válidos");
+  const p = profileSchema.safeParse(input);
+  if (!p.success) return fail("Revisa nombre, precio y consumo");
   await db
     .update(profiles)
-    .set({ fuelPricePerL: p.data.fuelPricePerL.toFixed(3), consumptionL100: p.data.consumptionL100.toFixed(2), updatedAt: new Date() })
+    .set({
+      name: p.data.name,
+      hasCar: p.data.hasCar,
+      fuelPricePerL: p.data.fuelPricePerL.toFixed(3),
+      consumptionL100: p.data.consumptionL100.toFixed(2),
+      updatedAt: new Date(),
+    })
     .where(eq(profiles.userId, me.userId));
   return done();
 }
@@ -159,6 +167,7 @@ export async function addTrip(input: z.input<typeof tripSchema>): Promise<Action
 
   const [driver] = await db.select().from(profiles).where(eq(profiles.userId, t.driverId)).limit(1);
   if (!driver) return fail("Conductor no encontrado");
+  if (!driver.hasCar) return fail(`${driver.name} no tiene coche`);
   const consumption = Number(driver.consumptionL100);
 
   const credits = creditsForTrip(t.distanceKm, t.fuelPricePerL, consumption);
@@ -209,6 +218,27 @@ export async function deleteTrip(id: string): Promise<ActionResult> {
 export async function deleteFavorite(id: string): Promise<ActionResult> {
   const me = await requireProfile();
   await db.delete(favorites).where(and(eq(favorites.id, id), eq(favorites.ownerId, me.userId)));
+  return done();
+}
+
+/* ───────── Catálogo de canjes ───────── */
+
+const rewardSchema = z.object({
+  name: z.string().trim().min(1, "Pon un nombre").max(40),
+  credits: z.number().int().positive().max(100000),
+});
+
+export async function addReward(input: z.input<typeof rewardSchema>): Promise<ActionResult> {
+  const me = await requireProfile();
+  const p = rewardSchema.safeParse(input);
+  if (!p.success) return fail(p.error.issues[0].message);
+  await db.insert(rewards).values({ ownerId: me.userId, ...p.data });
+  return done();
+}
+
+export async function deleteReward(id: string): Promise<ActionResult> {
+  const me = await requireProfile();
+  await db.delete(rewards).where(and(eq(rewards.id, id), eq(rewards.ownerId, me.userId)));
   return done();
 }
 

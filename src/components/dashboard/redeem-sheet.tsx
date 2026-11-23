@@ -6,25 +6,24 @@ import { Chip, Field, inputCls, SubmitButton } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/sheet";
 import { useRun } from "@/components/use-run";
 import type { PairBalance } from "@/lib/balance";
-import type { Person } from "@/lib/types";
+import type { Person, RewardView } from "@/lib/types";
 import { fmtCredits } from "@/lib/utils";
-
-const QUICK = [
-  { label: "−15 cr. Cañas", credits: 15, concept: "Cañas" },
-  { label: "−40 cr. Cena", credits: 40, concept: "Cena" },
-];
 
 export function RedeemSheet({
   open,
   onClose,
   people,
   pairs,
+  rewards,
+  onManage,
 }: {
   open: boolean;
   onClose: () => void;
   people: Person[];
   /** Saldos de «yo» contra cada persona. Se invita a quien se le debe (net < 0). */
   pairs: PairBalance[];
+  rewards: RewardView[];
+  onManage: () => void;
 }) {
   const creditors = pairs.filter((p) => p.net < 0);
   const [toUserId, setTo] = useState(creditors[0]?.userId ?? "");
@@ -39,7 +38,12 @@ export function RedeemSheet({
   return (
     <Sheet open={open} onClose={onClose} title="Canjear créditos">
       {creditors.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted">No debes créditos a nadie ahora mismo.</p>
+        <div className="space-y-3 py-6 text-center">
+          <p className="text-sm text-muted">No debes créditos a nadie ahora mismo.</p>
+          <button type="button" onClick={onManage} className="text-sm font-medium underline underline-offset-4">
+            Editar en qué canjear
+          </button>
+        </div>
       ) : (
         <form
           className="space-y-5"
@@ -59,17 +63,17 @@ export function RedeemSheet({
           </Field>
 
           <div className="flex flex-wrap gap-2">
-            {QUICK.map((q) => (
+            {rewards.map((q) => (
               <button
-                key={q.label}
+                key={q.id}
                 type="button"
                 onClick={() => {
-                  setConcept(q.concept);
-                  setCredits(String(Math.min(q.credits, owed)));
+                  setConcept(q.name);
+                  setCredits(String(q.credits));
                 }}
                 className="h-10 rounded-full bg-surface-2 px-4 text-sm font-medium active:scale-95"
               >
-                {q.label}
+                {q.name} · −{q.credits}
               </button>
             ))}
             <button
@@ -81,6 +85,9 @@ export function RedeemSheet({
               className="h-10 rounded-full bg-surface-2 px-4 text-sm font-medium active:scale-95"
             >
               Saldar todo
+            </button>
+            <button type="button" onClick={onManage} className="h-10 rounded-full px-3 text-sm font-medium text-muted underline underline-offset-4">
+              Editar lista
             </button>
           </div>
 

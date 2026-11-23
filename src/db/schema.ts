@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   integer,
   numeric,
@@ -20,6 +21,8 @@ export const profiles = pgTable("profiles", {
   email: text("email").notNull().unique(),
   /** Código para el enlace de amistad /invite/[code]. */
   friendCode: text("friend_code").notNull().unique(),
+  /** ¿Tiene coche? Si no, nunca aparece como conductor. */
+  hasCar: boolean("has_car").default(true).notNull(),
   /** Último precio del combustible introducido (€/l). Se reutiliza en el siguiente viaje. */
   fuelPricePerL: numeric("fuel_price_per_l", { precision: 6, scale: 3 }).default("1.650").notNull(),
   /** Consumo del coche (l/100 km). */
@@ -103,6 +106,17 @@ export const favorites = pgTable("favorites", {
   friendId: text("friend_id").references(() => profiles.userId, { onDelete: "set null" }),
   /** Quién suele conducir: 'me' o 'friend'. */
   driver: text("driver").default("me").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** Catálogo personal de cosas en las que canjear créditos (pintxo, cena…). */
+export const rewards = pgTable("rewards", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => profiles.userId, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  credits: integer("credits").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

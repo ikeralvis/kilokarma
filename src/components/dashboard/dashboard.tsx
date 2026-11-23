@@ -12,9 +12,11 @@ import { FriendsSheet } from "./friends-sheet";
 import { RedeemSheet } from "./redeem-sheet";
 import { Timeline } from "./timeline";
 import { TripSheet } from "./trip-sheet";
-import { VehicleSheet } from "./vehicle-sheet";
+import { ProfileSheet } from "./profile-sheet";
+import { RewardsSheet } from "./rewards-sheet";
+import { AutoRefresh } from "@/components/auto-refresh";
 
-type Sheets = "trip" | "redeem" | "friends" | "vehicle" | null;
+type Sheets = "trip" | "redeem" | "friends" | "profile" | "rewards" | null;
 
 export function Dashboard({ data }: { data: DashboardData }) {
   const { me, friends, people } = data;
@@ -42,17 +44,19 @@ export function Dashboard({ data }: { data: DashboardData }) {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-5 px-4 pb-32 pt-[max(1rem,env(safe-area-inset-top))]">
       <header className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
+        <button onClick={() => open("profile")} aria-label="Mi perfil" className="flex items-center gap-3 text-left">
           <Avatar name={me.name} id={me.id} size={40} />
-          <div>
-            <p className="text-xs text-muted">Hola</p>
-            <p className="text-sm font-semibold leading-tight">{me.name}</p>
-          </div>
-        </div>
+          <span>
+            <span className="block text-xs text-muted">Mi perfil</span>
+            <span className="block text-sm font-semibold leading-tight">{me.name}</span>
+          </span>
+        </button>
         <div className="flex gap-2">
-          <HeaderBtn label="Mi coche" onClick={() => open("vehicle")}>
-            <Fuel size={18} />
-          </HeaderBtn>
+          {data.vehicle.hasCar && (
+            <HeaderBtn label="Mi coche y gasolina" onClick={() => open("profile")}>
+              <Fuel size={18} />
+            </HeaderBtn>
+          )}
           <HeaderBtn label="Amigos" onClick={() => open("friends")} badge={data.pending.length}>
             <Users size={18} />
           </HeaderBtn>
@@ -124,9 +128,11 @@ export function Dashboard({ data }: { data: DashboardData }) {
       </div>
 
       {sheet === "trip" && <TripSheet key={n} open onClose={close} me={me} vehicle={data.vehicle} friends={friends} preset={preset} />}
-      {sheet === "redeem" && <RedeemSheet key={n} open onClose={close} people={people} pairs={pairs} />}
+      {sheet === "redeem" && <RedeemSheet key={n} open onClose={close} people={people} pairs={pairs} rewards={data.rewards} onManage={() => open("rewards")} />}
+      {sheet === "rewards" && <RewardsSheet open onClose={() => open("redeem")} rewards={data.rewards} />}
       {sheet === "friends" && <FriendsSheet open onClose={close} data={data} />}
-      {sheet === "vehicle" && <VehicleSheet key={n} open onClose={close} vehicle={data.vehicle} />}
+      {sheet === "profile" && <ProfileSheet key={n} open onClose={close} name={me.name} vehicle={data.vehicle} />}
+      <AutoRefresh />
     </div>
   );
 }

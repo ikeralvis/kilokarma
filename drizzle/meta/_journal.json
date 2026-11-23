@@ -8,6 +8,13 @@
       "when": 1795440800353,
       "tag": "0000_swift_firebrand",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795442130876,
+      "tag": "0001_ancient_boom_boom",
+      "breakpoints": true
     }
   ]
 }

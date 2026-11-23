@@ -35,8 +35,12 @@ export function TripSheet({
   const [origin, setOrigin] = useState(preset?.origin ?? "");
   const [destination, setDestination] = useState(preset?.destination ?? "");
   const [km, setKm] = useState(preset ? String(preset.distanceKm) : "");
-  const [driverId, setDriverId] = useState(preset?.driver === "friend" && presetFriend ? presetFriend : me.id);
-  const [riders, setRiders] = useState<string[]>(defaultFriend && preset?.driver !== "friend" ? [defaultFriend] : []);
+  // Solo pueden conducir quienes tienen coche.
+  const carFriends = friends.filter((f) => f.hasCar);
+  const drivers = [...(vehicle.hasCar ? [{ id: me.id, name: "Yo" }] : []), ...carFriends.map((f) => ({ id: f.id, name: f.name }))];
+  const presetDriver = preset?.driver === "friend" && presetFriend && carFriends.some((f) => f.id === presetFriend) ? presetFriend : null;
+  const [driverId, setDriverId] = useState(presetDriver ?? (vehicle.hasCar ? me.id : (carFriends.length === 1 ? carFriends[0].id : (drivers[0]?.id ?? ""))));
+  const [riders, setRiders] = useState<string[]>(defaultFriend && driverId === me.id ? [defaultFriend] : []);
   const [priceEdit, setPriceEdit] = useState<string | null>(null);
   const [favName, setFavName] = useState("");
   const [saveFav, setSaveFav] = useState(false);
@@ -52,7 +56,7 @@ export function TripSheet({
   const credits = creditsForTrip(distance || 0, priceNum || 0, driverVehicle.consumptionL100);
   const split = splitCredits(credits, passengerIds.length);
   const nameOf = (id: string) => (id === me.id ? "Tú" : (friends.find((f) => f.id === id)?.name ?? "?"));
-  const valid = destination.trim() !== "" && distance > 0 && priceNum > 0 && passengerIds.length > 0;
+  const valid = driverId !== "" && destination.trim() !== "" && distance > 0 && priceNum > 0 && passengerIds.length > 0;
 
   const everyone = [{ id: me.id, name: "Yo" }, ...friends.map((f) => ({ id: f.id, name: f.name }))];
 
@@ -98,11 +102,12 @@ export function TripSheet({
 
         <Field label="¿Quién conducía?">
           <div className="flex flex-wrap gap-2">
-            {everyone.map((m) => (
+            {drivers.map((m) => (
               <Chip key={m.id} active={driverId === m.id} onClick={() => setDriverId(m.id)}>
                 {m.name}
               </Chip>
             ))}
+            {drivers.length === 0 && <p className="text-sm text-muted">Nadie tiene coche: marca «Tengo coche» en el perfil de quien conduzca.</p>}
           </div>
         </Field>
 
@@ -124,7 +129,7 @@ export function TripSheet({
                   </Chip>
                 );
               })}
-            {friends.length === 0 && <p className="text-sm text-muted">Primero añade un amigo.</p>}
+            {friends.length === 0 && <p className="text-sm text-muted">Primero añade un amigo (botón de amigos, arriba).</p>}
           </div>
         </Field>
 

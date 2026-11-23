@@ -1,6 +1,6 @@
 export type Person = { id: string; name: string };
 
-export type FriendView = Person & { email: string; fuelPricePerL: number; consumptionL100: number };
+export type FriendView = Person & { email: string; hasCar: boolean; fuelPricePerL: number; consumptionL100: number };
 export type PendingRequest = { id: string; from: Person };
 
 export type TripView = {
@@ -31,7 +31,8 @@ export type FavoriteView = {
   friendId: string | null;
   driver: "me" | "friend";
 };
-export type VehicleView = { fuelPricePerL: number; consumptionL100: number };
+export type RewardView = { id: string; name: string; credits: number };
+export type VehicleView = { hasCar: boolean; fuelPricePerL: number; consumptionL100: number };
 
 export type DashboardData = {
   me: Person & { friendCode: string };
@@ -43,4 +44,5 @@ export type DashboardData = {
   trips: TripView[];
   redemptions: RedemptionView[];
   favorites: FavoriteView[];
+  rewards: RewardView[];
 };
