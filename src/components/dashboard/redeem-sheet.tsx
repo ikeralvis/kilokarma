@@ -101,6 +101,7 @@ export function RedeemSheet({
             />
           </div>
 
+          <p className="text-xs text-muted">{people.find((p) => p.id === toUserId)?.name ?? "Tu amigo"} tendrá que confirmarlo para que se descuenten los créditos.</p>
           {error && <p role="alert" className="text-sm text-accent-text">{error}</p>}
           <SubmitButton disabled={!valid} pending={pending}>
             Registrar invitación

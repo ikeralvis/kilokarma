@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Recapi, R">
+  <defs>
+    <linearGradient id="rBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a52e8"/>
+      <stop offset="1" stop-color="#2a9bff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="#ffffff"/>
+  <rect x="2" y="2" width="508" height="508" rx="114" fill="none" stroke="#dbe8ff" stroke-width="4"/>
+  <g transform="translate(0 6)"><path d="M176 396 V132 H270 C352 132 394 172 394 226 C394 280 352 320 270 320 H236 L374 398" fill="none" stroke="url(#rBlue)" stroke-width="92" stroke-linecap="round" stroke-linejoin="round" /></g>
+</svg>

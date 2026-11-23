@@ -10,6 +10,8 @@ export type TripView = {
   destination: string;
   distanceKm: number;
   costEur: number;
+  fuelPricePerL: number;
+  createdBy: string;
   xp: number;
   totalCredits: number;
   passengers: { passengerId: string; creditsOwed: number }[];
@@ -21,6 +23,7 @@ export type RedemptionView = {
   toUserId: string;
   concept: string;
   creditsRedeemed: number;
+  status: "pending" | "confirmed";
   createdAt: string;
 };
 export type FavoriteView = {

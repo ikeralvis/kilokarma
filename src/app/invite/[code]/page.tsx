@@ -26,7 +26,7 @@ async function Inner({ params }: { params: Promise<{ code: string }> }) {
         <p className="text-muted">Es tu propio enlace. Compártelo con un amigo.</p>
       ) : (
         <>
-          <h1 className="text-2xl font-semibold tracking-tight">{owner.name} quiere ser tu amigo en Recap</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{owner.name} quiere ser tu amigo en Recapi</h1>
           <AcceptInvite code={code} />
         </>
       )}

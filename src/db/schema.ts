@@ -131,6 +131,8 @@ export const rewards = pgTable("rewards", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const redemptionStatus = pgEnum("redemption_status", ["pending", "confirmed"]);
+
 export const redemptions = pgTable(
   "redemptions",
   {
@@ -145,6 +147,9 @@ export const redemptions = pgTable(
       .references(() => profiles.userId),
     concept: text("concept").notNull(),
     creditsRedeemed: integer("credits_redeemed").notNull(),
+    /** Solo descuenta créditos cuando el conductor (toUser) lo confirma. */
+    status: redemptionStatus("status").notNull().default("pending"),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index("redemptions_from_idx").on(t.fromUserId), index("redemptions_to_idx").on(t.toUserId)],

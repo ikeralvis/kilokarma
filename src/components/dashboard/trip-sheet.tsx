@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { addTrip } from "@/app/actions";
+import { addTrip, updateTrip } from "@/app/actions";
 import { Chip, Field, inputCls, SubmitButton } from "@/components/ui/form";
 import { Sheet } from "@/components/ui/sheet";
 import { useRun } from "@/components/use-run";
 import { splitCredits } from "@/lib/balance";
 import { costPerKm, creditsForTrip } from "@/lib/credits";
-import type { FavoriteView, FriendView, Person, VehicleView } from "@/lib/types";
+import { groupRoutes } from "@/lib/routes";
+import type { FavoriteView, FriendView, Person, TripView, VehicleView } from "@/lib/types";
 
 const num = (s: string) => Number(s.replace(",", "."));
 
@@ -18,6 +19,8 @@ export function TripSheet({
   vehicle,
   friends,
   preset,
+  trips,
+  editing,
 }: {
   open: boolean;
   onClose: () => void;
@@ -26,22 +29,26 @@ export function TripSheet({
   friends: FriendView[];
   /** Favorito: rellena todo para registrar con un toque. */
   preset?: FavoriteView | null;
+  /** Viajes ya hechos: de aquí salen las sugerencias. */
+  trips: TripView[];
+  /** Si viene, el formulario edita ese viaje en vez de crear uno. */
+  editing?: TripView | null;
 }) {
   // El padre monta este componente con `key` distinto por apertura → el estado se reinicia solo.
   const presetFriend = preset?.friendId && friends.some((f) => f.id === preset.friendId) ? preset.friendId : null;
   const soleFriend = friends.length === 1 ? friends[0].id : null;
   const defaultFriend = presetFriend ?? soleFriend;
 
-  const [origin, setOrigin] = useState(preset?.origin ?? "");
-  const [destination, setDestination] = useState(preset?.destination ?? "");
-  const [km, setKm] = useState(preset ? String(preset.distanceKm) : "");
+  const [origin, setOrigin] = useState(editing?.origin ?? preset?.origin ?? "");
+  const [destination, setDestination] = useState(editing?.destination ?? preset?.destination ?? "");
+  const [km, setKm] = useState(editing ? String(editing.distanceKm) : preset ? String(preset.distanceKm) : "");
   // Solo pueden conducir quienes tienen coche.
   const carFriends = friends.filter((f) => f.hasCar);
   const drivers = [...(vehicle.hasCar ? [{ id: me.id, name: "Yo" }] : []), ...carFriends.map((f) => ({ id: f.id, name: f.name }))];
   const presetDriver = preset?.driver === "friend" && presetFriend && carFriends.some((f) => f.id === presetFriend) ? presetFriend : null;
-  const [driverId, setDriverId] = useState(presetDriver ?? (vehicle.hasCar ? me.id : (carFriends.length === 1 ? carFriends[0].id : (drivers[0]?.id ?? ""))));
-  const [riders, setRiders] = useState<string[]>(defaultFriend && driverId === me.id ? [defaultFriend] : []);
-  const [priceEdit, setPriceEdit] = useState<string | null>(null);
+  const [driverId, setDriverId] = useState(editing?.driverId ?? presetDriver ?? (vehicle.hasCar ? me.id : (carFriends.length === 1 ? carFriends[0].id : (drivers[0]?.id ?? ""))));
+  const [riders, setRiders] = useState<string[]>(editing ? editing.passengers.map((p) => p.passengerId) : defaultFriend && driverId === me.id ? [defaultFriend] : []);
+  const [priceEdit, setPriceEdit] = useState<string | null>(editing ? String(editing.fuelPricePerL) : null);
   const [favName, setFavName] = useState("");
   const [saveFav, setSaveFav] = useState(false);
   const { run, pending, error } = useRun();
@@ -60,28 +67,45 @@ export function TripSheet({
 
   const everyone = [{ id: me.id, name: "Yo" }, ...friends.map((f) => ({ id: f.id, name: f.name }))];
 
+  // Sugerencias: rutas ya hechas (las más repetidas primero), filtradas por lo que escribes.
+  const q = destination.trim().toLowerCase();
+  const suggestions = editing || preset ? [] : groupRoutes(trips).filter((g) => !q || g.destination.toLowerCase().includes(q) || g.origin.toLowerCase().includes(q)).slice(0, 5);
+  const applyRoute = (g: ReturnType<typeof groupRoutes>[number]) => {
+    setOrigin(g.origin);
+    setDestination(g.destination);
+    setKm(String(g.distanceKm));
+    const drv = drivers.find((d) => d.id === g.driverId)?.id;
+    if (drv) {
+      setDriverId(drv);
+      setRiders(g.passengerIds.filter((id) => id !== drv && everyone.some((e) => e.id === id)));
+    }
+    setPriceEdit(null);
+  };
+
   return (
-    <Sheet open={open} onClose={onClose} title={preset ? preset.name : "Nuevo trayecto"}>
+    <Sheet open={open} onClose={onClose} title={editing ? "Editar trayecto" : preset ? preset.name : "Nuevo trayecto"}>
       <form
         className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
           if (!valid) return;
-          run(
-            () =>
-              addTrip({
-                origin,
-                destination,
-                distanceKm: distance,
-                driverId,
-                passengerIds,
-                fuelPricePerL: priceNum,
-                saveFavorite: saveFav ? favName.trim() || destination.trim() : undefined,
-              }),
-            onClose,
-          );
+          const base = { origin, destination, distanceKm: distance, driverId, passengerIds, fuelPricePerL: priceNum };
+          run(() => (editing ? updateTrip(editing.id, base) : addTrip({ ...base, saveFavorite: saveFav ? favName.trim() || destination.trim() : undefined })), onClose);
         }}
       >
+        {suggestions.length > 0 && (
+          <Field label="Rutas que ya has hecho">
+            <div className="flex flex-wrap gap-2">
+              {suggestions.map((g) => (
+                <button key={g.key} type="button" onClick={() => applyRoute(g)} className="h-9 rounded-full bg-surface-2 px-3 text-xs font-medium active:scale-95">
+                  {g.origin ? `${g.origin} → ` : ""}
+                  {g.destination} · {g.distanceKm} km · {g.count}×
+                </button>
+              ))}
+            </div>
+          </Field>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <Field label="Origen">
             <input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Casa" className={inputCls} />
@@ -142,7 +166,7 @@ export function TripSheet({
           )}
         </div>
 
-        {!preset && (
+        {!preset && !editing && (
           <div className="space-y-2">
             <label className="flex items-center gap-3 text-sm">
               <input type="checkbox" checked={saveFav} onChange={(e) => setSaveFav(e.target.checked)} className="size-5 accent-[var(--accent)]" />
@@ -154,7 +178,7 @@ export function TripSheet({
 
         {error && <p role="alert" className="text-sm text-accent-text">{error}</p>}
         <SubmitButton disabled={!valid} pending={pending}>
-          Registrar trayecto
+          {editing ? "Guardar cambios" : "Registrar trayecto"}
         </SubmitButton>
       </form>
     </Sheet>

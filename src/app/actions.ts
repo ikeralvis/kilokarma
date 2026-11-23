@@ -390,3 +390,109 @@ export async function setOnboarded(done_: boolean): Promise<ActionResult> {
   await db.update(profiles).set({ onboardedAt: done_ ? new Date() : null }).where(eq(profiles.userId, me.userId));
   return done();
 }
+
+/* ───────── Editar viajes y registros ───────── */
+
+export async function updateTrip(id: string, input: z.input<typeof tripSchema>): Promise<ActionResult> {
+  const me = await requireProfile("/coche");
+  const p = tripSchema.safeParse(input);
+  if (!p.success) return fail(p.error.issues[0].message);
+  const t = p.data;
+
+  const [old] = await db.select().from(trips).where(and(eq(trips.id, id), eq(trips.createdBy, me.userId))).limit(1);
+  if (!old) return fail("Solo quien creó el viaje puede editarlo");
+
+  const passengerIds = [...new Set(t.passengerIds)].filter((x) => x !== t.driverId);
+  if (passengerIds.length === 0) return fail("Conductor y acompañante no pueden ser la misma persona");
+  const participants = [t.driverId, ...passengerIds];
+  if (!participants.includes(me.userId)) return fail("Tienes que ir en el viaje");
+
+  const oldPassengers = await db.select({ id: tripPassengers.passengerId }).from(tripPassengers).where(eq(tripPassengers.tripId, id));
+  const allowed = new Set([...(await friendIdsOf(me.userId)), me.userId, old.driverId, ...oldPassengers.map((x) => x.id)]);
+  if (participants.some((x) => !allowed.has(x))) return fail("Solo puedes añadir a tus amigos");
+
+  const [driver] = await db.select().from(profiles).where(eq(profiles.userId, t.driverId)).limit(1);
+  if (!driver) return fail("Conductor no encontrado");
+  if (!driver.hasCar) return fail(`${driver.name} no tiene coche`);
+
+  const sameDriver = driver.userId === old.driverId;
+  const consumption = sameDriver ? Number(old.consumptionL100) : Number(driver.consumptionL100);
+  const credits = creditsForTrip(t.distanceKm, t.fuelPricePerL, consumption, Number(driver.euroPerCredit));
+  const split = splitCredits(credits, passengerIds.length);
+
+  await db.batch([
+    db
+      .update(trips)
+      .set({
+        driverId: t.driverId,
+        origin: t.origin,
+        destination: t.destination,
+        distanceKm: t.distanceKm.toFixed(2),
+        fuelPricePerL: t.fuelPricePerL.toFixed(3),
+        consumptionL100: consumption.toFixed(2),
+        costEur: tripCostEur(t.distanceKm, t.fuelPricePerL, consumption).toFixed(2),
+        totalCredits: credits,
+        xp: sameDriver ? old.xp : driver.tripXp,
+      })
+      .where(eq(trips.id, id)),
+    db.delete(tripPassengers).where(eq(tripPassengers.tripId, id)),
+    db.insert(tripPassengers).values(passengerIds.map((pid, i) => ({ tripId: id, passengerId: pid, creditsOwed: split[i] }))),
+  ]);
+  return done();
+}
+
+const eventEditSchema = z.object({
+  participantIds: z.array(z.string()).min(1, "Marca quién participa").max(10),
+  quantity: z.number().int().min(1).max(1000),
+  title: z.string().trim().max(80),
+  tag: z.string().trim().max(40),
+  note: z.string().trim().max(300).optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+export async function updateEvent(id: string, input: z.input<typeof eventEditSchema>): Promise<ActionResult> {
+  const me = await requireProfile("/");
+  const p = eventEditSchema.safeParse(input);
+  if (!p.success) return fail(p.error.issues[0].message);
+  const e = p.data;
+
+  const [old] = await db.select().from(events).where(and(eq(events.id, id), eq(events.createdBy, me.userId))).limit(1);
+  if (!old) return fail("Solo quien creó el registro puede editarlo");
+
+  const ids = [...new Set(e.participantIds)];
+  if (old.scope === "group" && ids.length < 2) return fail("Este tipo es grupal: marca al menos a un amigo");
+  const oldParts = await db.select({ id: eventParticipants.userId }).from(eventParticipants).where(eq(eventParticipants.eventId, id));
+  const allowed = new Set([...(await friendIdsOf(me.userId)), me.userId, ...oldParts.map((x) => x.id)]);
+  if (ids.some((x) => !allowed.has(x))) return fail("Solo puedes añadir a tus amigos");
+
+  const occurredAt = new Date(`${e.date}T12:00:00`);
+  if (occurredAt.getTime() > Date.now() + 86_400_000) return fail("La fecha no puede ser futura");
+
+  await db.batch([
+    db
+      .update(events)
+      .set({ quantity: old.kind === "counter" ? e.quantity : 1, title: e.title, tag: e.tag, note: e.note || null, occurredAt })
+      .where(eq(events.id, id)),
+    db.delete(eventParticipants).where(eq(eventParticipants.eventId, id)),
+    db.insert(eventParticipants).values(ids.map((userId) => ({ eventId: id, userId }))),
+  ]);
+  return done();
+}
+
+/* ───────── Confirmar canjes ───────── */
+
+/** El conductor confirma (o rechaza) que le han invitado: solo entonces se descuentan los créditos. */
+export async function confirmRedemption(id: string, accept: boolean): Promise<ActionResult> {
+  const me = await requireProfile("/coche");
+  const cond = and(eq(redemptions.id, id), eq(redemptions.toUserId, me.userId), eq(redemptions.status, "pending"));
+  if (accept) await db.update(redemptions).set({ status: "confirmed", confirmedAt: new Date() }).where(cond);
+  else await db.delete(redemptions).where(cond);
+  return done();
+}
+
+/** Quien registró el canje puede cancelarlo mientras esté pendiente. */
+export async function cancelRedemption(id: string): Promise<ActionResult> {
+  const me = await requireProfile("/coche");
+  await db.delete(redemptions).where(and(eq(redemptions.id, id), eq(redemptions.fromUserId, me.userId), eq(redemptions.status, "pending")));
+  return done();
+}

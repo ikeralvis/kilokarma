@@ -1,20 +1,146 @@
-import { Car } from "lucide-react";
-import { Avatar } from "@/components/ui/avatar";
-import { carStats, statsByType, tierFor, xpByUser, type TypeStat } from "@/lib/recap";
-import type { EventView, Person, TripView } from "@/lib/types";
-import { unitFor } from "@/lib/utils";
+"use client";
 
+import { Car } from "lucide-react";
+import { useState } from "react";
+import { Avatar } from "@/components/ui/avatar";
+import { MonthFilter } from "@/components/month-filter";
+import { monthKey, monthLabel, monthsOf } from "@/lib/months";
+import { carStats, palmares, statsByType, tierFor, xpByUser, xpInMonth, type TypeStat } from "@/lib/recap";
+import { useNow } from "@/lib/use-now";
+import type { EventView, Person, TripView } from "@/lib/types";
+import { cn, unitFor } from "@/lib/utils";
+
+type Props = { me: Person; friends: Person[]; events: EventView[]; trips: TripView[] };
+
+/** Ranking: acumulado (con el filtro de mes de la pantalla) y liga mensual (empieza de cero cada mes). */
 export function Ranking({
+  allEvents,
+  allTrips,
+  months,
+  month,
+  onMonth,
+  ...props
+}: Props & { allEvents: EventView[]; allTrips: TripView[]; months: string[]; month: string; onMonth: (m: string) => void }) {
+  const [view, setView] = useState<"total" | "league">("total");
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-1 rounded-2xl bg-surface-2 p-1" role="tablist" aria-label="Tipo de ranking">
+        {(
+          [
+            ["total", "Acumulado"],
+            ["league", "Liga mensual"],
+          ] as const
+        ).map(([id, label]) => (
+          <button key={id} role="tab" aria-selected={view === id} onClick={() => setView(id)} className={cn("h-9 rounded-xl text-sm font-medium transition", view === id ? "bg-surface text-fg shadow-sm" : "text-muted")}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {view === "total" ? (
+        <>
+          <MonthFilter months={months} value={month} onChange={onMonth} />
+          <Totals {...props} />
+        </>
+      ) : <League me={props.me} friends={props.friends} events={allEvents} trips={allTrips} />}
+    </div>
+  );
+}
+
+function League({ me, friends, events, trips }: Props) {
+  const now = useNow();
+  const currentKey = now === null ? null : monthKey(now);
+  const players = [me, ...friends];
+  const ids = players.map((p) => p.id);
+  const dataMonths = monthsOf([...events.map((e) => e.occurredAt), ...trips.map((t) => t.createdAt)]);
+  const months = currentKey && !dataMonths.includes(currentKey) ? [currentKey, ...dataMonths] : dataMonths;
+  const [picked, setPicked] = useState<string | null>(null);
+  const key = picked ?? currentKey ?? months[0] ?? null;
+
+  const hall = palmares(events, trips, ids, currentKey);
+  const trophies = new Map<string, number>();
+  for (const m of hall) for (const w of m.winners) trophies.set(w, (trophies.get(w) ?? 0) + 1);
+  const label = (p: Person) => (p.id === me.id ? "Tú" : p.name);
+
+  if (!key) return <p className="rounded-3xl border border-dashed border-line p-4 text-sm text-muted">La liga empieza en cuanto registres algo. Cada mes se reinicia y el ganador se lleva un 🏆.</p>;
+
+  const xp = xpInMonth(events, trips, key);
+  const board = players.map((p) => ({ ...p, xp: xp.get(p.id) ?? 0 })).sort((a, b) => b.xp - a.xp);
+  const top = board[0]?.xp ?? 0;
+  const closed = currentKey !== null && key < currentKey;
+  const daysLeft = now !== null && key === currentKey ? (() => { const d = new Date(now); return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate() - d.getDate() + 1; })() : null;
+  const medals = ["🥇", "🥈", "🥉"];
+
+  return (
+    <div className="space-y-5">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="radiogroup" aria-label="Mes de la liga">
+        {months.map((m) => (
+          <button key={m} role="radio" aria-checked={key === m} onClick={() => setPicked(m)} className={cn("h-9 shrink-0 rounded-full border px-4 text-sm font-medium", key === m ? "border-accent bg-accent text-accent-fg" : "border-line bg-surface text-muted")}>
+            {monthLabel(m)}
+          </button>
+        ))}
+      </div>
+
+      <section className="space-y-4 rounded-3xl border border-line bg-surface p-5">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold">{monthLabel(key)}</h2>
+          <span className="text-xs text-muted">{closed ? "Cerrada" : daysLeft !== null ? `Quedan ${daysLeft} ${daysLeft === 1 ? "día" : "días"}` : ""}</span>
+        </div>
+        <ol className="space-y-3">
+          {board.map((p, i) => (
+            <li key={p.id} className="grid grid-cols-[1.5rem_1fr_auto] items-center gap-3 text-sm">
+              <span className="text-center">{p.xp > 0 && i < 3 ? medals[i] : i + 1}</span>
+              <span className="space-y-1">
+                <span className="flex items-center gap-2 font-medium">
+                  {label(p)}
+                  {closed && p.xp > 0 && p.xp === top && <span title="Ganador del mes">🏆</span>}
+                </span>
+                <span className="block h-1.5 overflow-hidden rounded-full bg-surface-2">
+                  <span className="block h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${top > 0 ? (p.xp / top) * 100 : 0}%` }} />
+                </span>
+              </span>
+              <span className="font-semibold tabular-nums">{p.xp} XP</span>
+            </li>
+          ))}
+        </ol>
+        {top === 0 && <p className="text-xs text-muted">Nadie ha sumado XP este mes todavía.</p>}
+      </section>
+
+      <section className="space-y-3 rounded-3xl border border-line bg-surface p-5">
+        <h2 className="text-xs font-medium uppercase tracking-wider text-muted">Palmarés</h2>
+        {hall.length === 0 ? (
+          <p className="text-sm text-muted">Aún no hay meses cerrados. El 🏆 se reparte al acabar cada mes.</p>
+        ) : (
+          <>
+            <p className="text-sm font-semibold">
+              {players
+                .filter((p) => trophies.has(p.id))
+                .sort((a, b) => (trophies.get(b.id) ?? 0) - (trophies.get(a.id) ?? 0))
+                .map((p) => `${label(p)} 🏆${trophies.get(p.id)}`)
+                .join(" · ")}
+            </p>
+            <ul className="divide-y divide-line text-sm">
+              {hall.map((m) => (
+                <li key={m.key} className="flex items-center justify-between py-2">
+                  <span>{monthLabel(m.key)}</span>
+                  <span className="font-medium">
+                    🏆 {m.winners.map((w) => label(players.find((p) => p.id === w) ?? { id: w, name: "?" })).join(" y ")} <span className="font-normal text-muted">· {m.xp} XP</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function Totals({
   me,
   friends,
   events,
   trips,
-}: {
-  me: Person;
-  friends: Person[];
-  events: EventView[];
-  trips: TripView[];
-}) {
+}: Props) {
   const players = [me, ...friends];
   const ids = players.map((p) => p.id);
   const xp = xpByUser(events, trips);

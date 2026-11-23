@@ -22,14 +22,15 @@ if (typeof window !== "undefined") {
   });
 }
 
-type State = "standalone" | "prompt" | "ios" | "other";
+type State = "standalone" | "prompt" | "ios" | "android" | "other";
 
 function snapshot(): State {
   const nav = navigator as Navigator & { standalone?: boolean };
   if (window.matchMedia("(display-mode: standalone)").matches || nav.standalone) return "standalone";
   if (deferred) return "prompt";
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
-  return ios ? "ios" : "other";
+  if (ios) return "ios";
+  return /android/i.test(navigator.userAgent) ? "android" : "other";
 }
 
 function subscribe(cb: () => void) {
@@ -39,13 +40,18 @@ function subscribe(cb: () => void) {
   };
 }
 
+/** Estado de instalación: ya instalada, instalable con botón, o qué guía mostrar. */
+export function useInstallState(): State {
+  return useSyncExternalStore(subscribe, snapshot, () => "other" as State);
+}
+
 export function InstallCard() {
-  const state = useSyncExternalStore(subscribe, snapshot, () => "other" as State);
+  const state = useInstallState();
 
   if (state === "standalone")
     return (
       <p className="flex items-center gap-2 rounded-2xl bg-surface-2 p-3 text-sm">
-        <Check size={16} className="text-positive" /> Recap ya está instalada en este dispositivo.
+        <Check size={16} className="text-positive" /> Recapi ya está instalada en este dispositivo.
       </p>
     );
 
@@ -59,7 +65,7 @@ export function InstallCard() {
         }}
         className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-accent font-semibold text-accent-fg"
       >
-        <Download size={18} /> Instalar Recap
+        <Download size={18} /> Instalar Recapi
       </button>
     );
 
@@ -74,6 +80,21 @@ export function InstallCard() {
         </li>
         <li>
           3. Elige <b>Añadir a pantalla de inicio</b>.
+        </li>
+      </ol>
+    );
+
+  if (state === "android")
+    return (
+      <ol className="space-y-2 rounded-2xl bg-surface-2 p-3 text-sm">
+        <li>
+          1. Abre esta web en <b>Chrome</b>.
+        </li>
+        <li>
+          2. Toca el menú <b>⋮</b> (arriba a la derecha).
+        </li>
+        <li>
+          3. Elige <b>Instalar app</b> (o <b>Añadir a pantalla de inicio</b>).
         </li>
       </ol>
     );

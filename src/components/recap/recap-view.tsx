@@ -1,14 +1,16 @@
 "use client";
 
-import { Car, Plus, Settings, Settings2, Trash2 } from "lucide-react";
+import { Car, Pencil, Plus, Settings, Settings2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { addEvent, deleteEvent, seedEventTypes } from "@/app/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { MonthFilter } from "@/components/month-filter";
 import { ThemeSync, ThemeToggle } from "@/components/theme-toggle";
 import { TopTabs } from "@/components/top-tabs";
 import { Avatar } from "@/components/ui/avatar";
 import { useRun } from "@/components/use-run";
+import { monthKey, monthsOf } from "@/lib/months";
 import { eventXp, nameOf } from "@/lib/recap";
 import type { EventView, RecapData, TripView } from "@/lib/types";
 import { cn, unitFor } from "@/lib/utils";
@@ -26,12 +28,15 @@ export function RecapView({ data }: { data: RecapData }) {
   const [tab, setTab] = useState<"diary" | "ranking">("diary");
   const [sheet, setSheet] = useState(false);
   const [preset, setPreset] = useState<string | null>(null);
+  const [editing, setEditing] = useState<EventView | null>(null);
+  const [month, setMonth] = useState("all");
   const [n, setN] = useState(0);
   const [guideDone, setGuideDone] = useState(false);
   const { run, pending, error } = useRun();
 
-  const open = (typeId: string | null = null) => {
+  const open = (typeId: string | null = null, edit: EventView | null = null) => {
     setPreset(typeId);
+    setEditing(edit);
     setN((x) => x + 1);
     setSheet(true);
   };
@@ -40,14 +45,19 @@ export function RecapView({ data }: { data: RecapData }) {
   const myTotal = (name: string) =>
     events.filter((e) => e.typeName === name && e.participantIds.includes(me.id)).reduce((a, e) => a + e.quantity, 0);
 
+  // Filtro por mes (solo afecta al diario y al ranking acumulado; la liga usa todos los datos).
+  const months = useMemo(() => monthsOf([...events.map((e) => e.occurredAt), ...trips.map((t) => t.createdAt)]), [events, trips]);
+  const fEvents = useMemo(() => events.filter((e) => month === "all" || monthKey(e.occurredAt) === month), [events, month]);
+  const fTrips = useMemo(() => trips.filter((t) => month === "all" || monthKey(t.createdAt) === month), [trips, month]);
+
   // Diario: registros + trayectos en coche, del más reciente al más antiguo.
   const entries = useMemo<Entry[]>(
     () =>
       [
-        ...events.map((e) => ({ kind: "event" as const, at: e.occurredAt, data: e })),
-        ...trips.map((t) => ({ kind: "trip" as const, at: t.createdAt, data: t })),
+        ...fEvents.map((e) => ({ kind: "event" as const, at: e.occurredAt, data: e })),
+        ...fTrips.map((t) => ({ kind: "trip" as const, at: t.createdAt, data: t })),
       ].sort((a, b) => b.at.localeCompare(a.at)),
-    [events, trips],
+    [fEvents, fTrips],
   );
 
   return (
@@ -94,6 +104,7 @@ export function RecapView({ data }: { data: RecapData }) {
 
       {tab === "diary" ? (
         <>
+          <MonthFilter months={months} value={month} onChange={setMonth} />
           {counters.length > 0 && (
             <section>
               <h2 className="mb-3 px-1 text-xs font-medium uppercase tracking-wider text-muted">Contadores</h2>
@@ -173,6 +184,11 @@ export function RecapView({ data }: { data: RecapData }) {
                         <p className="text-[11px] text-muted">{dateFmt.format(new Date(it.at))}</p>
                       </div>
                       {it.data.createdBy === me.id && (
+                        <button aria-label="Editar registro" onClick={() => open(null, it.data)} className="grid size-8 place-items-center rounded-full text-muted hover:bg-surface-2">
+                          <Pencil size={14} />
+                        </button>
+                      )}
+                      {it.data.createdBy === me.id && (
                         <button
                           aria-label="Borrar registro"
                           disabled={pending}
@@ -191,7 +207,7 @@ export function RecapView({ data }: { data: RecapData }) {
           </section>
         </>
       ) : (
-        <Ranking me={me} friends={friends} events={events} trips={trips} />
+        <Ranking me={me} friends={friends} events={fEvents} trips={fTrips} allEvents={events} allTrips={trips} months={months} month={month} onMonth={setMonth} />
       )}
 
       <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-bg via-bg/90 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8">
@@ -211,7 +227,7 @@ export function RecapView({ data }: { data: RecapData }) {
         </div>
       </div>
 
-      {sheet && <EventSheet key={n} open onClose={() => setSheet(false)} me={me} friends={friends} types={types} events={events} presetTypeId={preset} />}
+      {sheet && <EventSheet key={n} open onClose={() => setSheet(false)} me={me} friends={friends} types={types} events={events} presetTypeId={preset} editing={editing} />}
       {!me.onboarded && !guideDone && <Onboarding data={data} onDone={() => setGuideDone(true)} />}
       <AutoRefresh />
       <ThemeSync accent={me.accentColor} />

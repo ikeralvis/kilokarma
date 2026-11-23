@@ -7,16 +7,15 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Recap",
-  description: "Vuestro diario: trayectos con créditos, planes, viajes y logros entre amigos.",
-  applicationName: "Recap",
+  title: { default: "Recapi", template: "%s · Recapi" },
+  description: "Recapi: vuestro diario con amigos. Trayectos con créditos, planes, ligas mensuales y logros.",
+  applicationName: "Recapi",
   appleWebApp: {
     capable: true,
-    title: "Recap",
+    title: "Recapi",
     statusBarStyle: "black-translucent",
   },
   formatDetection: { telephone: false },
-  icons: { apple: "/pwa-icon/180" },
 };
 
 export const viewport: Viewport = {

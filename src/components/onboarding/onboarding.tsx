@@ -3,7 +3,8 @@
 import { Car, Check, Copy, NotebookPen } from "lucide-react";
 import { useState } from "react";
 import { sendFriendRequest, setOnboarded, updateAccent, updateProfile } from "@/app/actions";
-import { InstallCard } from "@/components/install-card";
+import { Penguin } from "@/components/brand/penguin";
+import { InstallCard, useInstallState } from "@/components/install-card";
 import { setThemeMode, useThemeMode, type ThemeMode } from "@/components/theme-toggle";
 import { Chip, Field, inputCls } from "@/components/ui/form";
 import { useRun } from "@/components/use-run";
@@ -11,7 +12,7 @@ import { ACCENT_PRESETS, applyAccent } from "@/lib/accent";
 import type { RecapData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const STEPS = ["Bienvenida", "Perfil", "Apariencia", "Amigos", "Instalar"] as const;
+const STEPS = ["Bienvenida", "Perfil", "Apariencia", "Amigos", "Final"] as const;
 const num = (s: string) => Number(s.replace(",", "."));
 const MODES: { id: ThemeMode; label: string }[] = [
   { id: "system", label: "Sistema" },
@@ -24,6 +25,7 @@ export function Onboarding({ data, onDone }: { data: RecapData; onDone: () => vo
   const { me, vehicle } = data;
   const [step, setStep] = useState(0);
   const { run, pending, error, setError } = useRun();
+  const installed = useInstallState() === "standalone";
 
   // Perfil
   const [name, setName] = useState(me.name);
@@ -93,8 +95,8 @@ export function Onboarding({ data, onDone }: { data: RecapData; onDone: () => vo
           {step === 0 && (
             <>
               <div>
-                <span className="mb-4 grid size-14 place-items-center rounded-2xl bg-accent text-2xl font-extrabold text-accent-fg">R</span>
-                <h1 className="text-3xl font-semibold tracking-tight">Bienvenido a Recap</h1>
+                <Penguin size={132} className="-ml-2 mb-2" />
+                <h1 className="text-3xl font-semibold tracking-tight">Bienvenido a Recapi</h1>
                 <p className="mt-2 text-muted">El diario compartido con tus amigos. Dos cosas, bien separadas:</p>
               </div>
               <ul className="space-y-3">
@@ -191,7 +193,7 @@ export function Onboarding({ data, onDone }: { data: RecapData; onDone: () => vo
                 <h1 className="text-2xl font-semibold tracking-tight">Añade a tus amigos</h1>
                 <p className="mt-1 text-sm text-muted">Los registros en grupo, los trayectos y los rankings necesitan al menos un amigo.</p>
               </div>
-              <Field label="Por email (ya registrado en Recap)">
+              <Field label="Por email (ya registrado en Recapi)">
                 <form
                   className="flex gap-2"
                   onSubmit={(e) => {
@@ -220,10 +222,10 @@ export function Onboarding({ data, onDone }: { data: RecapData; onDone: () => vo
           {step === 4 && (
             <>
               <div>
-                <h1 className="text-2xl font-semibold tracking-tight">Instálala en tu móvil</h1>
-                <p className="mt-1 text-sm text-muted">Se abre como una app, a pantalla completa y desde el icono de inicio.</p>
+                <h1 className="text-2xl font-semibold tracking-tight">{installed ? "Todo listo" : "Instálala en tu móvil"}</h1>
+                <p className="mt-1 text-sm text-muted">{installed ? "Así se usa Recapi:" : "Se abre como una app, a pantalla completa y desde el icono de inicio."}</p>
               </div>
-              <InstallCard />
+              {!installed && <InstallCard />}
               <ul className="space-y-2 rounded-3xl border border-line bg-surface p-4 text-sm">
                 <li>
                   <b>Registrar</b> (botón de abajo): añade planes y viajes.

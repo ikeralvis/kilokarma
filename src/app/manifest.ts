@@ -2,21 +2,21 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Recap",
-    short_name: "Recap",
-    description: "Diario compartido entre amigos: trayectos, planes y logros.",
+    name: "Recapi",
+    short_name: "Recapi",
+    description: "Vuestro diario con amigos: trayectos con créditos, planes, ligas y logros.",
     id: "/",
     start_url: "/",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#0d1522",
-    theme_color: "#0d1522",
+    background_color: "#f3f7fc",
+    theme_color: "#f3f7fc",
     lang: "es",
     icons: [
-      { src: "/pwa-icon/192", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/pwa-icon/512", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/pwa-icon/512?maskable=1", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

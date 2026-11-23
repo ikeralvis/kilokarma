@@ -1,3 +1,4 @@
+import { monthKey } from "./months";
 import type { EventScope, EventView, Person, TripView } from "./types";
 
 /** Medallas por XP total. */
@@ -107,3 +108,30 @@ export function carStats(trips: TripView[]) {
 }
 
 export const nameOf = (people: Person[], meId: string, id: string) => (id === meId ? "Tú" : (people.find((p) => p.id === id)?.name ?? "?"));
+
+/* ───────── Liga mensual ───────── */
+
+/** XP de cada usuario en un mes concreto. */
+export function xpInMonth(events: EventView[], trips: TripView[], key: string): Map<string, number> {
+  return xpByUser(
+    events.filter((e) => monthKey(e.occurredAt) === key),
+    trips.filter((t) => monthKey(t.createdAt) === key),
+  );
+}
+
+export type MonthResult = { key: string; winners: string[]; xp: number };
+
+/** Ganadores de cada mes ya cerrado (anterior a `currentKey`). Empate = ganan todos los empatados. */
+export function palmares(events: EventView[], trips: TripView[], ids: string[], currentKey: string | null): MonthResult[] {
+  if (!currentKey) return [];
+  const idSet = new Set(ids);
+  const months = [...new Set([...events.map((e) => monthKey(e.occurredAt)), ...trips.map((t) => monthKey(t.createdAt))])].filter((k) => k < currentKey).sort().reverse();
+  const out: MonthResult[] = [];
+  for (const key of months) {
+    const xp = [...xpInMonth(events, trips, key).entries()].filter(([id, v]) => idSet.has(id) && v > 0);
+    if (xp.length === 0) continue;
+    const top = Math.max(...xp.map(([, v]) => v));
+    out.push({ key, xp: top, winners: xp.filter(([, v]) => v === top).map(([id]) => id) });
+  }
+  return out;
+}
