@@ -19,3 +19,8 @@ export function initials(name: string) {
 export function fmtCredits(n: number) {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
+
+/** «viajes» → «viaje» cuando la cantidad es 1 (las unidades se guardan en plural). */
+export function unitFor(unit: string, n: number) {
+  return n === 1 && unit.endsWith("s") ? unit.slice(0, -1) : unit;
+}

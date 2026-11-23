@@ -1,34 +1,51 @@
 @import "tailwindcss";
 
-/* Paleta activa: #4 (índigo azulado + lima). */
+/*
+ * Tema: azul pastel monocromo. Claro por defecto; oscuro por sistema o por el selector
+ * (html[data-theme="light" | "dark"], guardado en localStorage).
+ */
 :root {
   color-scheme: light;
-  --bg: #eef0f9;
+  --bg: #f3f7fc;
   --surface: #ffffff;
-  --surface-2: #e3e7f5;
-  --line: #ced4ea;
-  --muted: #55609f;
-  --fg: #1b2140;
-  --accent: #c2f24a;
-  --accent-fg: #1b2140;
-  --accent-text: #3d4a8c; /* acento legible como texto sobre fondo claro */
-  --positive: #1f8f6b;
+  --surface-2: #e7eff9;
+  --line: #d6e2f3;
+  --muted: #6580a5;
+  --fg: #1c2b42;
+  --accent: #9ec4f4;
+  --accent-fg: #12233d;
+  --accent-text: #3d6db2; /* acento legible como texto sobre fondo claro */
+  --positive: #4a86d6;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #090d1a;
-    --surface: #1b2140;
-    --surface-2: #262e57;
-    --line: #333d78;
-    --muted: #9aa7e6;
-    --fg: #e8e6f2;
-    --accent: #c2f24a;
-    --accent-fg: #090d1a;
-    --accent-text: #c2f24a;
-    --positive: #7fe0b8;
+    --bg: #0d1522;
+    --surface: #16233a;
+    --surface-2: #1f3050;
+    --line: #2b4067;
+    --muted: #8fa8cf;
+    --fg: #e6eefb;
+    --accent: #9cc2f7;
+    --accent-fg: #0d1b30;
+    --accent-text: #9cc2f7;
+    --positive: #6fa8f0;
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1522;
+  --surface: #16233a;
+  --surface-2: #1f3050;
+  --line: #2b4067;
+  --muted: #8fa8cf;
+  --fg: #e6eefb;
+  --accent: #9cc2f7;
+  --accent-fg: #0d1b30;
+  --accent-text: #9cc2f7;
+  --positive: #6fa8f0;
 }
 
 @theme inline {

@@ -23,9 +23,9 @@ async function Inner({ params, searchParams }: { params: Promise<{ view: string 
   return (
     <main className="mx-auto grid min-h-dvh w-full max-w-sm content-center gap-8 px-5 py-10">
       <div>
-        <span className="mb-4 grid size-12 place-items-center rounded-2xl bg-accent text-xl font-extrabold text-accent-fg">K</span>
-        <h1 className="text-2xl font-semibold tracking-tight">KiloKarma</h1>
-        <p className="mt-1 text-sm text-muted">Los kilómetros se pagan con créditos, no con dinero.</p>
+        <span className="mb-4 grid size-12 place-items-center rounded-2xl bg-accent text-xl font-extrabold text-accent-fg">R</span>
+        <h1 className="text-2xl font-semibold tracking-tight">Recap</h1>
+        <p className="mt-1 text-sm text-muted">Vuestro diario de trayectos, planes y logros.</p>
       </div>
       <AuthForm mode={view} next={next ?? "/"} />
     </main>

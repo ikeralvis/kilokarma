@@ -46,3 +46,22 @@ export type DashboardData = {
   favorites: FavoriteView[];
   rewards: RewardView[];
 };
+
+export type EventKind = "event" | "counter";
+export type EventTypeView = { id: string; name: string; emoji: string; kind: EventKind; unit: string; xp: number };
+export type EventView = {
+  id: string;
+  createdBy: string;
+  typeName: string;
+  emoji: string;
+  kind: EventKind;
+  unit: string;
+  xpPerUnit: number;
+  quantity: number;
+  title: string;
+  tag: string;
+  note: string | null;
+  occurredAt: string;
+  participantIds: string[];
+};
+export type RecapData = DashboardData & { types: EventTypeView[]; events: EventView[] };

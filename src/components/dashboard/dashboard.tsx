@@ -16,6 +16,8 @@ import { TripSheet } from "./trip-sheet";
 import { ProfileSheet } from "./profile-sheet";
 import { RewardsSheet } from "./rewards-sheet";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { TopTabs } from "@/components/top-tabs";
 
 type Sheets = "trip" | "redeem" | "friends" | "profile" | "rewards" | null;
 
@@ -58,6 +60,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
           </span>
         </button>
         <div className="flex gap-2">
+          <ThemeToggle />
           {data.vehicle.hasCar && (
             <HeaderBtn label="Mi coche y gasolina" onClick={() => open("profile")}>
               <Fuel size={18} />
@@ -73,6 +76,8 @@ export function Dashboard({ data }: { data: DashboardData }) {
           </form>
         </div>
       </header>
+
+      <TopTabs />
 
       <BalanceCard pairs={pairs} people={people} hasFriends={friends.length > 0} goal={goal} />
 

@@ -1,8 +1,8 @@
 import "server-only";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
-import { favorites, friendships, profiles, redemptions, rewards, tripPassengers, trips, type Profile } from "@/db/schema";
-import type { DashboardData } from "./types";
+import { eventParticipants, eventTypes, events, favorites, friendships, profiles, redemptions, rewards, tripPassengers, trips, type Profile } from "@/db/schema";
+import type { DashboardData, RecapData } from "./types";
 
 const NIL_UUID = "00000000-0000-0000-0000-000000000000";
 
@@ -105,6 +105,51 @@ export async function getDashboard(me: Profile): Promise<DashboardData> {
       distanceKm: Number(f.distanceKm),
       friendId: f.friendId,
       driver: f.driver === "friend" ? "friend" : "me",
+    })),
+  };
+}
+
+export async function getRecap(me: Profile): Promise<RecapData> {
+  const dash = await getDashboard(me);
+  const uid = me.userId;
+
+  const mine = await db.select({ eventId: eventParticipants.eventId }).from(eventParticipants).where(eq(eventParticipants.userId, uid));
+  const eventRows = await db
+    .select()
+    .from(events)
+    .where(or(eq(events.createdBy, uid), inArray(events.id, [NIL_UUID, ...mine.map((m) => m.eventId)])))
+    .orderBy(desc(events.occurredAt))
+    .limit(300);
+  const partRows = eventRows.length
+    ? await db.select().from(eventParticipants).where(inArray(eventParticipants.eventId, eventRows.map((e) => e.id)))
+    : [];
+  const typeRows = await db.select().from(eventTypes).where(eq(eventTypes.ownerId, uid)).orderBy(eventTypes.createdAt);
+
+  // Personas que salen en eventos y aún no están en la lista (p. ej. antiguos amigos).
+  const known = new Set(dash.people.map((p) => p.id));
+  const missing = [...new Set(partRows.map((p) => p.userId).concat(eventRows.map((e) => e.createdBy)))].filter((id) => !known.has(id));
+  const extra = missing.length
+    ? await db.select({ userId: profiles.userId, name: profiles.name }).from(profiles).where(inArray(profiles.userId, missing))
+    : [];
+
+  return {
+    ...dash,
+    people: [...dash.people, ...extra.map((p) => ({ id: p.userId, name: p.name }))],
+    types: typeRows.map((t) => ({ id: t.id, name: t.name, emoji: t.emoji, kind: t.kind, unit: t.unit, xp: t.xp })),
+    events: eventRows.map((e) => ({
+      id: e.id,
+      createdBy: e.createdBy,
+      typeName: e.typeName,
+      emoji: e.emoji,
+      kind: e.kind,
+      unit: e.unit,
+      xpPerUnit: e.xpPerUnit,
+      quantity: e.quantity,
+      title: e.title,
+      tag: e.tag,
+      note: e.note,
+      occurredAt: e.occurredAt.toISOString(),
+      participantIds: partRows.filter((p) => p.eventId === e.id).map((p) => p.userId),
     })),
   };
 }

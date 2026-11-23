@@ -23,7 +23,7 @@ export async function GET(
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#090d1a",
+          background: "#0d1522",
           borderRadius: maskable ? 0 : Math.round(size * 0.22),
         }}
       >
@@ -32,16 +32,16 @@ export async function GET(
             width: glyph,
             height: glyph,
             borderRadius: "50%",
-            background: "#c2f24a",
+            background: "#9ec4f4",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "#090d1a",
+            color: "#0d1522",
             fontSize: Math.round(glyph * 0.6),
             fontWeight: 800,
           }}
         >
-          K
+          R
         </div>
       </div>
     ),

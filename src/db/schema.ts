@@ -142,3 +142,64 @@ export const redemptions = pgTable(
 );
 
 export type Profile = typeof profiles.$inferSelect;
+
+export const eventKind = pgEnum("event_kind", ["event", "counter"]);
+
+/** Catálogo personal de cosas que registrar. «counter» = contador rápido (+1); «event» = entrada de diario. */
+export const eventTypes = pgTable("event_types", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => profiles.userId, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  emoji: text("emoji").notNull().default("⭐"),
+  kind: eventKind("kind").notNull().default("event"),
+  /** Unidad del contador (noches, viajes…). */
+  unit: text("unit").notNull().default(""),
+  /** XP por unidad (cantidad 1 = 1 unidad). */
+  xp: integer("xp").notNull().default(10),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * Cada evento guarda una copia (snapshot) de su tipo: si alguien borra o cambia el tipo,
+ * el historial y el ranking de los demás no se rompen. El ranking agrupa por nombre de tipo.
+ */
+export const events = pgTable(
+  "events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => profiles.userId),
+    typeId: uuid("type_id").references(() => eventTypes.id, { onDelete: "set null" }),
+    typeName: text("type_name").notNull(),
+    emoji: text("emoji").notNull().default("⭐"),
+    kind: eventKind("kind").notNull().default("event"),
+    unit: text("unit").notNull().default(""),
+    xpPerUnit: integer("xp_per_unit").notNull().default(10),
+    quantity: integer("quantity").notNull().default(1),
+    /** Lugar o título (p. ej. «Mediterráneo», «Casa de Mikel»). */
+    title: text("title").notNull().default(""),
+    /** Categoría libre (p. ej. «pintxos», «japonés»). */
+    tag: text("tag").notNull().default(""),
+    note: text("note"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("events_created_by_idx").on(t.createdBy), index("events_occurred_idx").on(t.occurredAt)],
+);
+
+export const eventParticipants = pgTable(
+  "event_participants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => profiles.userId),
+  },
+  (t) => [uniqueIndex("event_participants_unique").on(t.eventId, t.userId), index("event_participants_user_idx").on(t.userId)],
+);

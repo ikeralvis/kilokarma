@@ -5,17 +5,19 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
-import { favorites, friendships, profiles, redemptions, rewards, tripPassengers, trips } from "@/db/schema";
+import { eventParticipants, eventTypes, events, favorites, friendships, profiles, redemptions, rewards, tripPassengers, trips } from "@/db/schema";
 import { splitCredits } from "@/lib/balance";
 import { auth } from "@/lib/auth/server";
 import { creditsForTrip, tripCostEur } from "@/lib/credits";
 import { friendIdsOf } from "@/lib/data";
+import { DEFAULT_EVENT_TYPES } from "@/lib/event-defaults";
 import { requireProfile } from "@/lib/session";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 const fail = (error: string): ActionResult => ({ ok: false, error });
 const done = (): ActionResult => {
   revalidatePath("/");
+  revalidatePath("/recap");
   return { ok: true };
 };
 
@@ -266,5 +268,101 @@ export async function redeem(input: z.input<typeof redeemSchema>): Promise<Actio
   if (!p.success) return fail(p.error.issues[0].message);
   if (!(await friendIdsOf(me.userId)).includes(p.data.toUserId)) return fail("Solo puedes invitar a tus amigos");
   await db.insert(redemptions).values({ fromUserId: me.userId, toUserId: p.data.toUserId, concept: p.data.concept, creditsRedeemed: p.data.credits });
+  return done();
+}
+
+/* ───────── Recap: tipos y eventos ───────── */
+
+const typeSchema = z.object({
+  name: z.string().trim().min(1, "Pon un nombre").max(40),
+  emoji: z.string().trim().min(1).max(8),
+  kind: z.enum(["event", "counter"]),
+  unit: z.string().trim().max(20),
+  xp: z.number().int().min(0).max(1000),
+});
+
+export async function addEventType(input: z.input<typeof typeSchema>): Promise<ActionResult> {
+  const me = await requireProfile();
+  const p = typeSchema.safeParse(input);
+  if (!p.success) return fail(p.error.issues[0].message);
+  await db.insert(eventTypes).values({ ownerId: me.userId, ...p.data });
+  return done();
+}
+
+export async function updateEventType(id: string, input: z.input<typeof typeSchema>): Promise<ActionResult> {
+  const me = await requireProfile();
+  const p = typeSchema.safeParse(input);
+  if (!p.success) return fail(p.error.issues[0].message);
+  await db.update(eventTypes).set(p.data).where(and(eq(eventTypes.id, id), eq(eventTypes.ownerId, me.userId)));
+  return done();
+}
+
+export async function deleteEventType(id: string): Promise<ActionResult> {
+  const me = await requireProfile();
+  await db.delete(eventTypes).where(and(eq(eventTypes.id, id), eq(eventTypes.ownerId, me.userId)));
+  return done();
+}
+
+export async function seedEventTypes(): Promise<ActionResult> {
+  const me = await requireProfile();
+  const existing = await db.select({ name: eventTypes.name }).from(eventTypes).where(eq(eventTypes.ownerId, me.userId));
+  const have = new Set(existing.map((e) => e.name.toLowerCase()));
+  const toAdd = DEFAULT_EVENT_TYPES.filter((t) => !have.has(t.name.toLowerCase()));
+  if (toAdd.length) await db.insert(eventTypes).values(toAdd.map((t) => ({ ownerId: me.userId, ...t })));
+  return done();
+}
+
+const eventSchema = z.object({
+  typeId: z.string().uuid(),
+  participantIds: z.array(z.string()).min(1, "Marca quién participa").max(10),
+  quantity: z.number().int().min(1).max(1000),
+  title: z.string().trim().max(80),
+  tag: z.string().trim().max(40),
+  note: z.string().trim().max(300).optional(),
+  /** Fecha (YYYY-MM-DD). Si falta, ahora. */
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+export async function addEvent(input: z.input<typeof eventSchema>): Promise<ActionResult> {
+  const me = await requireProfile("/recap");
+  const p = eventSchema.safeParse(input);
+  if (!p.success) return fail(p.error.issues[0].message);
+  const e = p.data;
+
+  const [type] = await db.select().from(eventTypes).where(and(eq(eventTypes.id, e.typeId), eq(eventTypes.ownerId, me.userId))).limit(1);
+  if (!type) return fail("Tipo no encontrado");
+
+  const ids = [...new Set(e.participantIds)];
+  const friends = new Set(await friendIdsOf(me.userId));
+  if (ids.some((id) => id !== me.userId && !friends.has(id))) return fail("Solo puedes añadir a tus amigos");
+
+  const occurredAt = e.date ? new Date(`${e.date}T12:00:00`) : new Date();
+  if (occurredAt.getTime() > Date.now() + 86_400_000) return fail("La fecha no puede ser futura");
+
+  const eventId = crypto.randomUUID();
+  await db.batch([
+    db.insert(events).values({
+      id: eventId,
+      createdBy: me.userId,
+      typeId: type.id,
+      typeName: type.name,
+      emoji: type.emoji,
+      kind: type.kind,
+      unit: type.unit,
+      xpPerUnit: type.xp,
+      quantity: type.kind === "counter" ? e.quantity : 1,
+      title: e.title,
+      tag: e.tag,
+      note: e.note || null,
+      occurredAt,
+    }),
+    db.insert(eventParticipants).values(ids.map((userId) => ({ eventId, userId }))),
+  ]);
+  return done();
+}
+
+export async function deleteEvent(id: string): Promise<ActionResult> {
+  const me = await requireProfile("/recap");
+  await db.delete(events).where(and(eq(events.id, id), eq(events.createdBy, me.userId)));
   return done();
 }
