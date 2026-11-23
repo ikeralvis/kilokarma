@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { redeem } from "@/app/actions";
 import { Chip, Field, inputCls, SubmitButton } from "@/components/ui/form";
@@ -15,7 +16,6 @@ export function RedeemSheet({
   people,
   pairs,
   rewards,
-  onManage,
 }: {
   open: boolean;
   onClose: () => void;
@@ -23,7 +23,6 @@ export function RedeemSheet({
   /** Saldos de «yo» contra cada persona. Se invita a quien se le debe (net < 0). */
   pairs: PairBalance[];
   rewards: RewardView[];
-  onManage: () => void;
 }) {
   const creditors = pairs.filter((p) => p.net < 0);
   const [toUserId, setTo] = useState(creditors[0]?.userId ?? "");
@@ -40,9 +39,9 @@ export function RedeemSheet({
       {creditors.length === 0 ? (
         <div className="space-y-3 py-6 text-center">
           <p className="text-sm text-muted">No debes créditos a nadie ahora mismo.</p>
-          <button type="button" onClick={onManage} className="text-sm font-medium underline underline-offset-4">
+          <Link href="/ajustes#canjes" className="text-sm font-medium underline underline-offset-4">
             Editar en qué canjear
-          </button>
+          </Link>
         </div>
       ) : (
         <form
@@ -86,9 +85,9 @@ export function RedeemSheet({
             >
               Saldar todo
             </button>
-            <button type="button" onClick={onManage} className="h-10 rounded-full px-3 text-sm font-medium text-muted underline underline-offset-4">
+            <Link href="/ajustes#canjes" className="grid h-10 place-items-center rounded-full px-3 text-sm font-medium text-muted underline underline-offset-4">
               Editar lista
-            </button>
+            </Link>
           </div>
 
           <div className="grid grid-cols-[1fr_6rem] gap-3">

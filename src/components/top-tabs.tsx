@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/", label: "Cuentas" },
-  { href: "/recap", label: "Recap" },
+  { href: "/", label: "Recap" },
+  { href: "/coche", label: "Coche" },
 ];
 
 export function TopTabs() {

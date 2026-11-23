@@ -1,26 +1,25 @@
 "use client";
 
-import { Car, Fuel, LogOut, Plus, Star, Trash2, Users, Utensils } from "lucide-react";
+import { Car, Fuel, Plus, Settings, Star, Trash2, Utensils } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { deleteFavorite, signOutAction } from "@/app/actions";
+import { deleteFavorite } from "@/app/actions";
+import { AutoRefresh } from "@/components/auto-refresh";
+import { ThemeSync, ThemeToggle } from "@/components/theme-toggle";
+import { TopTabs } from "@/components/top-tabs";
 import { Avatar } from "@/components/ui/avatar";
 import { useRun } from "@/components/use-run";
 import { balancesFor, buildLedger } from "@/lib/balance";
 import { DEFAULT_REWARD_GOAL } from "@/lib/credits";
 import type { DashboardData, FavoriteView } from "@/lib/types";
 import { BalanceCard } from "./balance-card";
-import { FriendsSheet } from "./friends-sheet";
 import { RedeemSheet } from "./redeem-sheet";
 import { Timeline } from "./timeline";
 import { TripSheet } from "./trip-sheet";
-import { ProfileSheet } from "./profile-sheet";
-import { RewardsSheet } from "./rewards-sheet";
-import { AutoRefresh } from "@/components/auto-refresh";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { TopTabs } from "@/components/top-tabs";
 
-type Sheets = "trip" | "redeem" | "friends" | "profile" | "rewards" | null;
+type Sheets = "trip" | "redeem" | null;
 
+/** Sección «Coche»: créditos, trayectos y canjes. */
 export function Dashboard({ data }: { data: DashboardData }) {
   const { me, friends, people } = data;
   const [sheet, setSheet] = useState<Sheets>(null);
@@ -52,28 +51,26 @@ export function Dashboard({ data }: { data: DashboardData }) {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-5 px-4 pb-32 pt-[max(1rem,env(safe-area-inset-top))]">
       <header className="flex items-center justify-between gap-2">
-        <button onClick={() => open("profile")} aria-label="Mi perfil" className="flex items-center gap-3 text-left">
+        <Link href="/ajustes" aria-label="Mi perfil y ajustes" className="flex items-center gap-3">
           <Avatar name={me.name} id={me.id} size={40} />
           <span>
-            <span className="block text-xs text-muted">Mi perfil</span>
+            <span className="block text-xs text-muted">Coche</span>
             <span className="block text-sm font-semibold leading-tight">{me.name}</span>
           </span>
-        </button>
+        </Link>
         <div className="flex gap-2">
           <ThemeToggle />
           {data.vehicle.hasCar && (
-            <HeaderBtn label="Mi coche y gasolina" onClick={() => open("profile")}>
+            <Link href="/ajustes#coche" aria-label="Mi coche y gasolina" className="grid size-11 place-items-center rounded-full border border-line bg-surface">
               <Fuel size={18} />
-            </HeaderBtn>
+            </Link>
           )}
-          <HeaderBtn label="Amigos" onClick={() => open("friends")} badge={data.pending.length}>
-            <Users size={18} />
-          </HeaderBtn>
-          <form action={signOutAction}>
-            <HeaderBtn label="Salir" submit>
-              <LogOut size={18} />
-            </HeaderBtn>
-          </form>
+          <Link href="/ajustes" aria-label="Ajustes" className="relative grid size-11 place-items-center rounded-full border border-line bg-surface">
+            <Settings size={18} />
+            {data.pending.length > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">{data.pending.length}</span>
+            )}
+          </Link>
         </div>
       </header>
 
@@ -139,39 +136,9 @@ export function Dashboard({ data }: { data: DashboardData }) {
       </div>
 
       {sheet === "trip" && <TripSheet key={n} open onClose={close} me={me} vehicle={data.vehicle} friends={friends} preset={preset} />}
-      {sheet === "redeem" && <RedeemSheet key={n} open onClose={close} people={people} pairs={pairs} rewards={data.rewards} onManage={() => open("rewards")} />}
-      {sheet === "rewards" && <RewardsSheet open onClose={() => open("redeem")} rewards={data.rewards} />}
-      {sheet === "friends" && <FriendsSheet open onClose={close} data={data} />}
-      {sheet === "profile" && <ProfileSheet key={n} open onClose={close} name={me.name} vehicle={data.vehicle} />}
+      {sheet === "redeem" && <RedeemSheet key={n} open onClose={close} people={people} pairs={pairs} rewards={data.rewards} />}
       <AutoRefresh />
+      <ThemeSync accent={me.accentColor} />
     </div>
-  );
-}
-
-function HeaderBtn({
-  label,
-  onClick,
-  badge = 0,
-  submit,
-  children,
-}: {
-  label: string;
-  onClick?: () => void;
-  badge?: number;
-  submit?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type={submit ? "submit" : "button"}
-      aria-label={label}
-      onClick={onClick}
-      className="relative grid size-11 place-items-center rounded-full border border-line bg-surface"
-    >
-      {children}
-      {badge > 0 && (
-        <span className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-accent text-[11px] font-bold text-accent-fg">{badge}</span>
-      )}
-    </button>
   );
 }

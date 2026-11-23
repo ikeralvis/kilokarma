@@ -1,51 +1,49 @@
 @import "tailwindcss";
 
 /*
- * Tema: azul pastel monocromo. Claro por defecto; oscuro por sistema o por el selector
- * (html[data-theme="light" | "dark"], guardado en localStorage).
+ * Tema: se deriva de un tono (--h) que sale del color de acento que elija cada usuario
+ * (Ajustes → Apariencia). Claro por defecto; oscuro por sistema o por selector
+ * (html[data-theme="light" | "dark"]).
  */
 :root {
-  color-scheme: light;
-  --bg: #f3f7fc;
-  --surface: #ffffff;
-  --surface-2: #e7eff9;
-  --line: #d6e2f3;
-  --muted: #6580a5;
-  --fg: #1c2b42;
+  --h: 212;
   --accent: #9ec4f4;
   --accent-fg: #12233d;
-  --accent-text: #3d6db2; /* acento legible como texto sobre fondo claro */
-  --positive: #4a86d6;
+  color-scheme: light;
+  --bg: hsl(var(--h) 60% 97%);
+  --surface: #ffffff;
+  --surface-2: hsl(var(--h) 55% 94%);
+  --line: hsl(var(--h) 45% 90%);
+  --muted: hsl(var(--h) 22% 42%);
+  --fg: hsl(var(--h) 35% 15%);
+  --accent-text: hsl(var(--h) 55% 38%); /* acento legible como texto sobre fondo claro */
+  --positive: hsl(var(--h) 62% 50%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #0d1522;
-    --surface: #16233a;
-    --surface-2: #1f3050;
-    --line: #2b4067;
-    --muted: #8fa8cf;
-    --fg: #e6eefb;
-    --accent: #9cc2f7;
-    --accent-fg: #0d1b30;
-    --accent-text: #9cc2f7;
-    --positive: #6fa8f0;
+    --bg: hsl(var(--h) 42% 9%);
+    --surface: hsl(var(--h) 36% 14%);
+    --surface-2: hsl(var(--h) 34% 19%);
+    --line: hsl(var(--h) 32% 26%);
+    --muted: hsl(var(--h) 30% 70%);
+    --fg: hsl(var(--h) 50% 95%);
+    --accent-text: hsl(var(--h) 85% 76%);
+    --positive: hsl(var(--h) 75% 70%);
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0d1522;
-  --surface: #16233a;
-  --surface-2: #1f3050;
-  --line: #2b4067;
-  --muted: #8fa8cf;
-  --fg: #e6eefb;
-  --accent: #9cc2f7;
-  --accent-fg: #0d1b30;
-  --accent-text: #9cc2f7;
-  --positive: #6fa8f0;
+  --bg: hsl(var(--h) 42% 9%);
+  --surface: hsl(var(--h) 36% 14%);
+  --surface-2: hsl(var(--h) 34% 19%);
+  --line: hsl(var(--h) 32% 26%);
+  --muted: hsl(var(--h) 30% 70%);
+  --fg: hsl(var(--h) 50% 95%);
+  --accent-text: hsl(var(--h) 85% 76%);
+  --positive: hsl(var(--h) 75% 70%);
 }
 
 @theme inline {

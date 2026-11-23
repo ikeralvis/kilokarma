@@ -1,11 +1,21 @@
-import type { EventKind } from "./types";
+import type { EventKind, EventScope } from "./types";
 
-/** Tipos de ejemplo (editables). */
-export const DEFAULT_EVENT_TYPES: { name: string; emoji: string; kind: EventKind; unit: string; xp: number }[] = [
-  { name: "Restaurante", emoji: "🍽️", kind: "event", unit: "", xp: 10 },
-  { name: "Cine", emoji: "🎬", kind: "event", unit: "", xp: 10 },
-  { name: "Visita", emoji: "🏠", kind: "event", unit: "", xp: 8 },
-  { name: "Viaje en avión", emoji: "✈️", kind: "counter", unit: "viajes", xp: 30 },
-  { name: "Noches de hotel", emoji: "🏨", kind: "counter", unit: "noches", xp: 5 },
-  { name: "Viaje de empresa", emoji: "💼", kind: "counter", unit: "viajes", xp: 15 },
+export type DefaultType = {
+  name: string;
+  emoji: string;
+  kind: EventKind;
+  scope: EventScope;
+  unit: string;
+  xp: number;
+  subcategories: string[];
+};
+
+/** Tipos de ejemplo (editables en Ajustes). */
+export const DEFAULT_EVENT_TYPES: DefaultType[] = [
+  { name: "Restaurante", emoji: "🍽️", kind: "event", scope: "group", unit: "", xp: 10, subcategories: ["Mexicano", "Fast food", "Japonés", "Italiano", "Pintxos", "Mediterráneo"] },
+  { name: "Cine", emoji: "🎬", kind: "event", scope: "group", unit: "", xp: 10, subcategories: [] },
+  { name: "Visita", emoji: "🏠", kind: "event", scope: "group", unit: "", xp: 8, subcategories: [] },
+  { name: "Viaje en avión", emoji: "✈️", kind: "counter", scope: "individual", unit: "viajes", xp: 30, subcategories: [] },
+  { name: "Noches de hotel", emoji: "🏨", kind: "counter", scope: "individual", unit: "noches", xp: 5, subcategories: [] },
+  { name: "Viaje de empresa", emoji: "💼", kind: "counter", scope: "individual", unit: "viajes", xp: 15, subcategories: [] },
 ];

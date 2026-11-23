@@ -10,6 +10,7 @@ export type TripView = {
   destination: string;
   distanceKm: number;
   costEur: number;
+  xp: number;
   totalCredits: number;
   passengers: { passengerId: string; creditsOwed: number }[];
   createdAt: string;
@@ -32,10 +33,10 @@ export type FavoriteView = {
   driver: "me" | "friend";
 };
 export type RewardView = { id: string; name: string; credits: number };
-export type VehicleView = { hasCar: boolean; fuelPricePerL: number; consumptionL100: number; euroPerCredit: number };
+export type VehicleView = { tripXp: number; hasCar: boolean; fuelPricePerL: number; consumptionL100: number; euroPerCredit: number };
 
 export type DashboardData = {
-  me: Person & { friendCode: string };
+  me: Person & { friendCode: string; accentColor: string };
   vehicle: VehicleView;
   friends: FriendView[];
   pending: PendingRequest[];
@@ -48,13 +49,24 @@ export type DashboardData = {
 };
 
 export type EventKind = "event" | "counter";
-export type EventTypeView = { id: string; name: string; emoji: string; kind: EventKind; unit: string; xp: number };
+export type EventScope = "individual" | "group";
+export type EventTypeView = {
+  id: string;
+  name: string;
+  emoji: string;
+  kind: EventKind;
+  scope: EventScope;
+  unit: string;
+  xp: number;
+  subcategories: string[];
+};
 export type EventView = {
   id: string;
   createdBy: string;
   typeName: string;
   emoji: string;
   kind: EventKind;
+  scope: EventScope;
   unit: string;
   xpPerUnit: number;
   quantity: number;

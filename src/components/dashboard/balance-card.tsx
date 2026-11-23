@@ -1,4 +1,5 @@
 import { Gift } from "lucide-react";
+import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
 import { rewardProgress, type PairBalance } from "@/lib/balance";
 import type { Person } from "@/lib/types";
@@ -32,7 +33,7 @@ export function BalanceCard({
         {total > 0 ? "Te deben en total" : total < 0 ? "Debes en total" : "Estáis en paz"}
       </p>
 
-      {!hasFriends && <p className="mt-5 rounded-2xl bg-surface-2 p-3 text-sm text-muted">Añade a un amigo para empezar a registrar viajes.</p>}
+      {!hasFriends && <p className="mt-5 rounded-2xl bg-surface-2 p-3 text-sm text-muted">Añade a un amigo en <Link href="/ajustes#amigos" className="font-medium text-fg underline underline-offset-4">Ajustes</Link> para empezar a registrar viajes.</p>}
 
       <ul className="mt-5 space-y-4">
         {sorted.map((p) => {

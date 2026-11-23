@@ -1,5 +1,6 @@
 import {
   boolean,
+  jsonb,
   index,
   integer,
   numeric,
@@ -21,6 +22,10 @@ export const profiles = pgTable("profiles", {
   email: text("email").notNull().unique(),
   /** Código para el enlace de amistad /invite/[code]. */
   friendCode: text("friend_code").notNull().unique(),
+  /** Color de acento elegido (hex). */
+  accentColor: text("accent_color").notNull().default("#9ec4f4"),
+  /** XP fijo que da cada trayecto en coche cuando conduce este usuario. */
+  tripXp: integer("trip_xp").notNull().default(5),
   /** ¿Tiene coche? Si no, nunca aparece como conductor. */
   hasCar: boolean("has_car").default(true).notNull(),
   /** Último precio del combustible introducido (€/l). Se reutiliza en el siguiente viaje. */
@@ -68,6 +73,8 @@ export const trips = pgTable(
     fuelPricePerL: numeric("fuel_price_per_l", { precision: 6, scale: 3 }).notNull(),
     consumptionL100: numeric("consumption_l100", { precision: 5, scale: 2 }).notNull(),
     costEur: numeric("cost_eur", { precision: 8, scale: 2 }).notNull(),
+    /** XP que da el trayecto a cada participante (fijo por viaje). */
+    xp: integer("xp").notNull().default(5),
     totalCredits: integer("total_credits").notNull(),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -144,6 +151,8 @@ export const redemptions = pgTable(
 export type Profile = typeof profiles.$inferSelect;
 
 export const eventKind = pgEnum("event_kind", ["event", "counter"]);
+/** individual: cada uno suma lo suyo y se compara · group: solo cuenta lo hecho juntos. */
+export const eventScope = pgEnum("event_scope", ["individual", "group"]);
 
 /** Catálogo personal de cosas que registrar. «counter» = contador rápido (+1); «event» = entrada de diario. */
 export const eventTypes = pgTable("event_types", {
@@ -156,6 +165,9 @@ export const eventTypes = pgTable("event_types", {
   kind: eventKind("kind").notNull().default("event"),
   /** Unidad del contador (noches, viajes…). */
   unit: text("unit").notNull().default(""),
+  scope: eventScope("scope").notNull().default("individual"),
+  /** Subcategorías (p. ej. Mexicano, Fast food). */
+  subcategories: jsonb("subcategories").$type<string[]>().notNull().default([]),
   /** XP por unidad (cantidad 1 = 1 unidad). */
   xp: integer("xp").notNull().default(10),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -177,6 +189,7 @@ export const events = pgTable(
     emoji: text("emoji").notNull().default("⭐"),
     kind: eventKind("kind").notNull().default("event"),
     unit: text("unit").notNull().default(""),
+    scope: eventScope("scope").notNull().default("individual"),
     xpPerUnit: integer("xp_per_unit").notNull().default(10),
     quantity: integer("quantity").notNull().default(1),
     /** Lugar o título (p. ej. «Mediterráneo», «Casa de Mikel»). */

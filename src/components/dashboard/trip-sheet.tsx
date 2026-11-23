@@ -129,7 +129,7 @@ export function TripSheet({
                   </Chip>
                 );
               })}
-            {friends.length === 0 && <p className="text-sm text-muted">Primero añade un amigo (botón de amigos, arriba).</p>}
+            {friends.length === 0 && <p className="text-sm text-muted">Primero añade un amigo en Ajustes.</p>}
           </div>
         </Field>
 

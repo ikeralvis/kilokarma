@@ -17,7 +17,8 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 const fail = (error: string): ActionResult => ({ ok: false, error });
 const done = (): ActionResult => {
   revalidatePath("/");
-  revalidatePath("/recap");
+  revalidatePath("/coche");
+  revalidatePath("/ajustes");
   return { ok: true };
 };
 
@@ -62,6 +63,8 @@ const profileSchema = z.object({
   fuelPricePerL: z.number().min(0.3).max(5),
   consumptionL100: z.number().min(1).max(30),
   euroPerCredit: z.number().min(0.01).max(5),
+  tripXp: z.number().int().min(0).max(100),
+  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
 });
 
 export async function updateProfile(input: z.infer<typeof profileSchema>): Promise<ActionResult> {
@@ -76,6 +79,8 @@ export async function updateProfile(input: z.infer<typeof profileSchema>): Promi
       fuelPricePerL: p.data.fuelPricePerL.toFixed(3),
       consumptionL100: p.data.consumptionL100.toFixed(2),
       euroPerCredit: p.data.euroPerCredit.toFixed(3),
+      tripXp: p.data.tripXp,
+      accentColor: p.data.accentColor.toLowerCase(),
       updatedAt: new Date(),
     })
     .where(eq(profiles.userId, me.userId));
@@ -190,6 +195,7 @@ export async function addTrip(input: z.input<typeof tripSchema>): Promise<Action
       consumptionL100: consumption.toFixed(2),
       costEur: tripCostEur(t.distanceKm, t.fuelPricePerL, consumption).toFixed(2),
       totalCredits: credits,
+      xp: driver.tripXp,
     }),
     db.insert(tripPassengers).values(passengerIds.map((id, i) => ({ tripId, passengerId: id, creditsOwed: split[i] }))),
     // El precio queda guardado en el perfil del conductor para el siguiente viaje.
@@ -277,6 +283,8 @@ const typeSchema = z.object({
   name: z.string().trim().min(1, "Pon un nombre").max(40),
   emoji: z.string().trim().min(1).max(8),
   kind: z.enum(["event", "counter"]),
+  scope: z.enum(["individual", "group"]),
+  subcategories: z.array(z.string().trim().min(1).max(30)).max(30),
   unit: z.string().trim().max(20),
   xp: z.number().int().min(0).max(1000),
 });
@@ -324,13 +332,14 @@ const eventSchema = z.object({
 });
 
 export async function addEvent(input: z.input<typeof eventSchema>): Promise<ActionResult> {
-  const me = await requireProfile("/recap");
+  const me = await requireProfile("/");
   const p = eventSchema.safeParse(input);
   if (!p.success) return fail(p.error.issues[0].message);
   const e = p.data;
 
   const [type] = await db.select().from(eventTypes).where(and(eq(eventTypes.id, e.typeId), eq(eventTypes.ownerId, me.userId))).limit(1);
   if (!type) return fail("Tipo no encontrado");
+  if (type.scope === "group" && new Set(e.participantIds).size < 2) return fail("Este tipo es grupal: marca al menos a un amigo");
 
   const ids = [...new Set(e.participantIds)];
   const friends = new Set(await friendIdsOf(me.userId));
@@ -348,6 +357,7 @@ export async function addEvent(input: z.input<typeof eventSchema>): Promise<Acti
       typeName: type.name,
       emoji: type.emoji,
       kind: type.kind,
+      scope: type.scope,
       unit: type.unit,
       xpPerUnit: type.xp,
       quantity: type.kind === "counter" ? e.quantity : 1,
@@ -362,7 +372,14 @@ export async function addEvent(input: z.input<typeof eventSchema>): Promise<Acti
 }
 
 export async function deleteEvent(id: string): Promise<ActionResult> {
-  const me = await requireProfile("/recap");
+  const me = await requireProfile("/");
   await db.delete(events).where(and(eq(events.id, id), eq(events.createdBy, me.userId)));
+  return done();
+}
+
+export async function updateAccent(hex: string): Promise<ActionResult> {
+  const me = await requireProfile("/ajustes");
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return fail("Color no válido");
+  await db.update(profiles).set({ accentColor: hex.toLowerCase(), updatedAt: new Date() }).where(eq(profiles.userId, me.userId));
   return done();
 }

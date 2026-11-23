@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import { Dashboard } from "@/components/dashboard/dashboard";
-import { getDashboard } from "@/lib/data";
+import { RecapView } from "@/components/recap/recap-view";
+import { getRecap } from "@/lib/data";
 import { requireProfile } from "@/lib/session";
 
 export default function Home() {
@@ -13,10 +13,10 @@ export default function Home() {
 
 async function Data() {
   const me = await requireProfile("/");
-  const data = await getDashboard(me);
+  const data = await getRecap(me);
   return (
     <main>
-      <Dashboard data={data} />
+      <RecapView data={data} />
     </main>
   );
 }

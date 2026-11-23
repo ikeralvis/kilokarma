@@ -1,9 +1,9 @@
 import { Suspense } from "react";
-import { RecapView } from "@/components/recap/recap-view";
+import { SettingsView } from "@/components/settings/settings-view";
 import { getRecap } from "@/lib/data";
 import { requireProfile } from "@/lib/session";
 
-export default function RecapPage() {
+export default function SettingsPage() {
   return (
     <Suspense fallback={<div className="grid min-h-dvh place-items-center text-sm text-muted">Cargando…</div>}>
       <Data />
@@ -12,11 +12,11 @@ export default function RecapPage() {
 }
 
 async function Data() {
-  const me = await requireProfile("/recap");
+  const me = await requireProfile("/ajustes");
   const data = await getRecap(me);
   return (
     <main>
-      <RecapView data={data} />
+      <SettingsView data={data} />
     </main>
   );
 }

@@ -65,8 +65,8 @@ export async function getDashboard(me: Profile): Promise<DashboardData> {
   const person = (id: string) => ({ id, name: byId.get(id)?.name ?? "Usuario" });
 
   return {
-    me: { id: uid, name: me.name, friendCode: me.friendCode },
-    vehicle: { hasCar: me.hasCar, fuelPricePerL: Number(me.fuelPricePerL), consumptionL100: Number(me.consumptionL100), euroPerCredit: Number(me.euroPerCredit) },
+    me: { id: uid, name: me.name, friendCode: me.friendCode, accentColor: me.accentColor },
+    vehicle: { tripXp: me.tripXp, hasCar: me.hasCar, fuelPricePerL: Number(me.fuelPricePerL), consumptionL100: Number(me.consumptionL100), euroPerCredit: Number(me.euroPerCredit) },
     friends: friendIds.map((id) => ({
       ...person(id),
       email: byId.get(id)?.email ?? "",
@@ -84,6 +84,7 @@ export async function getDashboard(me: Profile): Promise<DashboardData> {
       destination: t.destination,
       distanceKm: Number(t.distanceKm),
       costEur: Number(t.costEur),
+      xp: t.xp,
       totalCredits: t.totalCredits,
       passengers: passengerRows.filter((p) => p.tripId === t.id).map((p) => ({ passengerId: p.passengerId, creditsOwed: p.creditsOwed })),
       createdAt: t.createdAt.toISOString(),
@@ -135,13 +136,14 @@ export async function getRecap(me: Profile): Promise<RecapData> {
   return {
     ...dash,
     people: [...dash.people, ...extra.map((p) => ({ id: p.userId, name: p.name }))],
-    types: typeRows.map((t) => ({ id: t.id, name: t.name, emoji: t.emoji, kind: t.kind, unit: t.unit, xp: t.xp })),
+    types: typeRows.map((t) => ({ id: t.id, name: t.name, emoji: t.emoji, kind: t.kind, scope: t.scope, unit: t.unit, xp: t.xp, subcategories: t.subcategories })),
     events: eventRows.map((e) => ({
       id: e.id,
       createdBy: e.createdBy,
       typeName: e.typeName,
       emoji: e.emoji,
       kind: e.kind,
+      scope: e.scope,
       unit: e.unit,
       xpPerUnit: e.xpPerUnit,
       quantity: e.quantity,

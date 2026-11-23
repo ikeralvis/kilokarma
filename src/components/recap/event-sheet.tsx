@@ -26,8 +26,10 @@ export function EventSheet({
   presetTypeId?: string | null;
 }) {
   // El padre monta este componente con `key` distinto por apertura → el estado se reinicia solo.
-  const [typeId, setTypeId] = useState(presetTypeId ?? types[0]?.id ?? "");
-  const [participants, setParticipants] = useState<string[]>([me.id]);
+  const first = types.find((t) => t.id === presetTypeId) ?? types[0];
+  const soleFriend = friends.length === 1 ? friends[0].id : null;
+  const [typeId, setTypeId] = useState(first?.id ?? "");
+  const [participants, setParticipants] = useState<string[]>(first?.scope === "group" && soleFriend ? [me.id, soleFriend] : [me.id]);
   const [title, setTitle] = useState("");
   const [tag, setTag] = useState("");
   const [qty, setQty] = useState(1);
@@ -37,13 +39,20 @@ export function EventSheet({
 
   const type = types.find((t) => t.id === typeId);
   const isCounter = type?.kind === "counter";
+  const isGroup = type?.scope === "group";
   const everyone = [{ id: me.id, name: "Yo" }, ...friends.map((f) => ({ id: f.id, name: f.name }))];
   const xp = type ? type.xp * (isCounter ? qty : 1) : 0;
+  const needsFriend = isGroup && participants.length < 2;
 
-  // Categorías ya usadas con este tipo, para repetirlas con un toque.
-  const knownTags = [...new Set(events.filter((e) => e.typeName === type?.name && e.tag).map((e) => e.tag))].slice(0, 8);
+  // Subcategorías definidas + las ya usadas con este tipo.
+  const subs = type ? [...new Set([...type.subcategories, ...events.filter((e) => e.typeName === type.name && e.tag).map((e) => e.tag)])].slice(0, 16) : [];
 
   const toggle = (id: string) => setParticipants((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const pickType = (t: EventTypeView) => {
+    setTypeId(t.id);
+    setTag("");
+    if (t.scope === "group" && participants.length < 2 && soleFriend) setParticipants([me.id, soleFriend]);
+  };
 
   return (
     <Sheet open={open} onClose={onClose} title="Registrar">
@@ -51,22 +60,22 @@ export function EventSheet({
         className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!type) return;
+          if (!type || needsFriend) return;
           run(() => addEvent({ typeId, participantIds: participants, quantity: qty, title, tag, note: note || undefined, date }), onClose);
         }}
       >
         <Field label="¿Qué?">
           <div className="flex flex-wrap gap-2">
             {types.map((t) => (
-              <Chip key={t.id} active={typeId === t.id} onClick={() => setTypeId(t.id)}>
+              <Chip key={t.id} active={typeId === t.id} onClick={() => pickType(t)}>
                 {t.emoji} {t.name}
               </Chip>
             ))}
-            {types.length === 0 && <p className="text-sm text-muted">Crea primero un tipo en «Tipos».</p>}
+            {types.length === 0 && <p className="text-sm text-muted">Crea primero una categoría en Ajustes.</p>}
           </div>
         </Field>
 
-        <Field label="¿Quién?">
+        <Field label={isGroup ? "¿Con quién? (grupal)" : "¿Quién?"}>
           <div className="flex flex-wrap gap-2">
             {everyone.map((m) => (
               <Chip key={m.id} active={participants.includes(m.id)} onClick={() => toggle(m.id)}>
@@ -79,6 +88,7 @@ export function EventSheet({
               </button>
             )}
           </div>
+          {needsFriend && <p className="text-xs text-accent-text">Esta categoría es grupal: marca al menos a un amigo.</p>}
         </Field>
 
         {isCounter ? (
@@ -94,23 +104,24 @@ export function EventSheet({
             </div>
           </Field>
         ) : (
-          <>
-            <Field label="Lugar / título">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Mediterráneo" className={inputCls} />
-            </Field>
-            <Field label="Categoría">
-              <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="mediterránea, pintxos…" className={inputCls} />
-              {knownTags.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {knownTags.map((t) => (
-                    <button key={t} type="button" onClick={() => setTag(t)} className="h-8 rounded-full bg-surface-2 px-3 text-xs font-medium">
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </Field>
-          </>
+          <Field label="Lugar / título">
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Mediterráneo" className={inputCls} />
+          </Field>
+        )}
+
+        {(subs.length > 0 || !isCounter) && (
+          <Field label="Subcategoría">
+            {subs.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {subs.map((s) => (
+                  <Chip key={s} active={tag.toLowerCase() === s.toLowerCase()} onClick={() => setTag(tag.toLowerCase() === s.toLowerCase() ? "" : s)}>
+                    {s}
+                  </Chip>
+                ))}
+              </div>
+            )}
+            <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Otra…" aria-label="Otra subcategoría" className={`${inputCls} mt-2`} />
+          </Field>
         )}
 
         <div className="grid grid-cols-[1fr_auto] items-end gap-3">
@@ -123,7 +134,7 @@ export function EventSheet({
         {!isCounter && <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Nota (opcional)" className={inputCls} />}
 
         {error && <p role="alert" className="text-sm text-accent-text">{error}</p>}
-        <SubmitButton disabled={!type || participants.length === 0} pending={pending}>
+        <SubmitButton disabled={!type || participants.length === 0 || needsFriend} pending={pending}>
           Guardar
         </SubmitButton>
       </form>
