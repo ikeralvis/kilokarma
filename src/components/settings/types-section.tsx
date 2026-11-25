@@ -14,13 +14,13 @@ const toDraft = (t: EventTypeView): Draft => ({ name: t.name, emoji: t.emoji, ki
 const EMPTY: Draft = { name: "", emoji: "⭐", kind: "event", scope: "group", unit: "", xp: "10", subcategories: [] };
 const payload = (d: Draft) => ({ ...d, xp: Number(d.xp) || 0 });
 
-export function TypesSection({ types }: { types: EventTypeView[] }) {
+export function TypesSection({ types, shared = [] }: { types: EventTypeView[]; shared?: EventTypeView[] }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const { run, pending, error } = useRun();
 
   return (
-    <Card id="categorias" title="Categorías" hint="Lo que puedes registrar en el Recap. Toca una para editarla.">
+    <Card id="categorias" title="Categorías" hint="Lo que podéis registrar en el Recap. Se comparten con tus amigos: tus categorías les salen a ellos y las suyas a ti. Toca una tuya para editarla.">
       <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line">
         {types.map((t) => (
           <TypeRow key={`${t.id}-${JSON.stringify(t)}`} type={t} />
@@ -33,6 +33,25 @@ export function TypesSection({ types }: { types: EventTypeView[] }) {
           </li>
         )}
       </ul>
+
+      {shared.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted">De tus amigos</p>
+          <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line">
+            {shared.map((t) => (
+              <li key={t.id} className="flex items-center gap-3 px-4 py-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-surface-2 text-lg">{t.emoji}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{t.name}</span>
+                  <span className="block truncate text-xs text-muted">
+                    {t.kind === "counter" ? "Contador" : "Evento"} · {t.scope === "group" ? "Juntos" : "Cada uno"} · {t.xp} XP · creada por {t.ownerName}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {adding ? (
         <form

@@ -11,11 +11,11 @@ import { TopTabs } from "@/components/top-tabs";
 import { Avatar } from "@/components/ui/avatar";
 import { useRun } from "@/components/use-run";
 import { balancesFor, buildLedger } from "@/lib/balance";
-import { DEFAULT_REWARD_GOAL } from "@/lib/credits";
 import { monthKey, monthLabel, monthsOf } from "@/lib/months";
 import { groupRoutes, routeKey, type RouteGroup } from "@/lib/routes";
 import type { DashboardData, FavoriteView, TripView } from "@/lib/types";
 import { fmtCredits } from "@/lib/utils";
+import { Credits } from "@/components/ui/coin";
 import { BalanceCard } from "./balance-card";
 import { RedeemSheet } from "./redeem-sheet";
 import { Timeline } from "./timeline";
@@ -40,7 +40,8 @@ export function Dashboard({ data }: { data: DashboardData }) {
   const redemptions = useMemo(() => data.redemptions.filter((r) => month === "all" || monthKey(r.createdAt) === month), [data.redemptions, month]);
   const routes = useMemo(() => groupRoutes(trips), [trips]);
   const allRoutes = useMemo(() => new Map(groupRoutes(data.trips).map((g) => [g.key, g])), [data.trips]);
-  const toConfirm = data.redemptions.filter((r) => r.status === "pending" && r.toUserId === me.id);
+  // Canjes que me toca confirmar: los propuso la otra persona.
+  const toConfirm = data.redemptions.filter((r) => r.status === "pending" && r.requestedBy !== me.id);
   const periodKm = trips.reduce((a, t) => a + t.distanceKm, 0);
   const periodCredits = trips.reduce((a, t) => a + t.totalCredits, 0);
   // Amigos actuales + cualquiera con quien aún haya saldo pendiente.
@@ -49,11 +50,6 @@ export function Dashboard({ data }: { data: DashboardData }) {
     const friendIds = new Set(friends.map((f) => f.id));
     return all.filter((p) => friendIds.has(p.userId) || p.net !== 0);
   }, [ledger, me.id, people, friends]);
-
-  const goal = useMemo(() => {
-    const cheapest = [...data.rewards].sort((a, b) => a.credits - b.credits)[0];
-    return cheapest ? { name: cheapest.name, credits: cheapest.credits } : { name: "un canje", credits: DEFAULT_REWARD_GOAL };
-  }, [data.rewards]);
 
   const open = (s: Exclude<Sheets, null>, p: FavoriteView | null = null, edit: TripView | null = null) => {
     setPreset(p);
@@ -108,7 +104,16 @@ export function Dashboard({ data }: { data: DashboardData }) {
           {toConfirm.map((r) => (
             <div key={r.id} className="flex items-center gap-3">
               <p className="min-w-0 flex-1 text-sm">
-                <b>{nameOf(r.fromUserId)}</b> dice que te invitó a <b>{r.concept}</b> ({fmtCredits(r.creditsRedeemed)} cr.)
+                {r.toUserId === me.id ? (
+                  <>
+                    <b>{nameOf(r.fromUserId)}</b> dice que te invitó a <b>{r.concept}</b>
+                  </>
+                ) : (
+                  <>
+                    <b>{nameOf(r.toUserId)}</b> te pide <b>{r.concept}</b> para saldar lo que le debes
+                  </>
+                )}{" "}
+                <Credits value={fmtCredits(r.creditsRedeemed)} sign="−" className="font-semibold" />
               </p>
               <button aria-label="Confirmar" disabled={pending} onClick={() => run(() => confirmRedemption(r.id, true))} className="grid size-10 place-items-center rounded-full bg-accent text-accent-fg">
                 <Check size={18} />
@@ -121,12 +126,12 @@ export function Dashboard({ data }: { data: DashboardData }) {
         </section>
       )}
 
-      <BalanceCard pairs={pairs} people={people} hasFriends={friends.length > 0} goal={goal} />
+      <BalanceCard meId={me.id} pairs={pairs} people={people} hasFriends={friends.length > 0} rewards={data.rewards} />
 
       <MonthFilter months={months} value={month} onChange={setMonth} />
       {trips.length > 0 && (
         <p className="-mt-2 px-1 text-sm text-muted">
-          {month === "all" ? "En total" : monthLabel(month)}: <b className="text-fg">{trips.length}</b> {trips.length === 1 ? "viaje" : "viajes"} · <b className="text-fg">{Math.round(periodKm)}</b> km · <b className="text-fg">{periodCredits}</b> cr.
+          {month === "all" ? "En total" : monthLabel(month)}: <b className="text-fg">{trips.length}</b> {trips.length === 1 ? "viaje" : "viajes"} · <b className="text-fg">{Math.round(periodKm)}</b> km · <Credits value={periodCredits} className="font-semibold text-fg" />
         </p>
       )}
 
@@ -187,7 +192,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
                         {g.destination}
                       </span>
                       <span className="text-xs text-muted">
-                        {Math.round(g.totalKm)} km · {g.totalCredits} cr.
+                        {Math.round(g.totalKm)} km · <Credits value={g.totalCredits} size={12} />
                       </span>
                     </span>
                     <span className="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-semibold tabular-nums">{g.count}×</span>
@@ -218,7 +223,7 @@ export function Dashboard({ data }: { data: DashboardData }) {
       </div>
 
       {sheet === "trip" && <TripSheet key={n} open onClose={close} me={me} vehicle={data.vehicle} friends={friends} preset={preset} trips={data.trips} editing={editing} />}
-      {sheet === "redeem" && <RedeemSheet key={n} open onClose={close} people={people} pairs={pairs} rewards={data.rewards} />}
+      {sheet === "redeem" && <RedeemSheet key={n} open onClose={close} me={me} people={people} pairs={pairs} rewards={data.rewards} />}
       <AutoRefresh />
       <ThemeSync accent={me.accentColor} />
     </div>

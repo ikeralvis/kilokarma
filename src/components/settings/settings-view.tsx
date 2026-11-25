@@ -50,8 +50,8 @@ export function SettingsView({ data }: { data: RecapData }) {
 
       <ProfileSection me={me} vehicle={data.vehicle} accent={me.accentColor} />
       <AppearanceSection accent={me.accentColor} />
-      <TypesSection types={data.types} />
-      <RewardsSection rewards={data.rewards} />
+      <TypesSection types={data.types.filter((t) => t.ownerId === me.id)} shared={data.types.filter((t) => t.ownerId !== me.id)} />
+      <RewardsSection rewards={data.rewards.filter((r) => r.ownerId === me.id)} />
       <FriendsSection data={data} />
 
       <Card id="app" title="App" hint="Instálala para abrirla como una app de tu móvil.">

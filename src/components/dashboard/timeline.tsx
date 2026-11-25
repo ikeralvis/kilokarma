@@ -2,6 +2,7 @@
 
 import { Car, Check, Pencil, Trash2, Utensils, X } from "lucide-react";
 import { cancelRedemption, confirmRedemption, deleteTrip } from "@/app/actions";
+import { Credits } from "@/components/ui/coin";
 import { useRun } from "@/components/use-run";
 import { useNow } from "@/lib/use-now";
 import type { Person, RedemptionView, TripView } from "@/lib/types";
@@ -51,22 +52,32 @@ export function Timeline({
                       {it.data.destination}
                     </p>
                     <p className="truncate text-xs text-muted">
-                      {name(it.data.driverId)} conduce · {fmtCredits(it.data.distanceKm)} km · {it.data.costEur.toFixed(2)} € · {it.data.passengers.map((p) => name(p.passengerId)).join(", ")}
+                      {fmtCredits(it.data.distanceKm)} km · {it.data.costEur.toFixed(2)} € · <b className="font-medium text-fg">{name(it.data.driverId)}</b> {it.data.driverId === meId ? "ganas" : "gana"} {it.data.totalCredits} ·{" "}
+                      {it.data.passengers.map((p) => `${name(p.passengerId)} ${p.passengerId === meId ? "debes" : "debe"} ${p.creditsOwed}`).join(", ")}
                     </p>
                   </>
                 ) : (
                   <>
                     <p className="truncate text-sm font-medium">{it.data.concept}</p>
                     <p className="truncate text-xs text-muted">
-                      {name(it.data.fromUserId)} invita a {name(it.data.toUserId)}
+                      {it.data.requestedBy === it.data.toUserId ? `${name(it.data.toUserId)} pide a ${name(it.data.fromUserId)}` : `${name(it.data.fromUserId)} invita a ${name(it.data.toUserId)}`}
                       {pendingRedeem && <span className="ml-1 rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-fg">Pendiente</span>}
                     </p>
                   </>
                 )}
               </div>
               <div className="text-right">
-                <p className={`text-sm font-semibold tabular-nums ${it.kind === "trip" ? "" : pendingRedeem ? "text-muted" : "text-accent-text"}`}>
-                  {it.kind === "trip" ? `+${fmtCredits(it.data.totalCredits)}` : `−${fmtCredits(it.data.creditsRedeemed)}`} <span className="text-xs font-normal text-muted">cr.</span>
+                <p className={`text-sm font-semibold ${it.kind === "trip" ? "" : pendingRedeem ? "text-muted" : "text-accent-text"}`}>
+                  {it.kind === "trip" ? (
+                    // Desde mi punto de vista: si conduzco gano el total; si voy de acompañante, debo mi parte.
+                    it.data.driverId === meId ? (
+                      <Credits value={fmtCredits(it.data.totalCredits)} sign="+" />
+                    ) : (
+                      <Credits value={fmtCredits(it.data.passengers.find((p) => p.passengerId === meId)?.creditsOwed ?? 0)} sign="−" />
+                    )
+                  ) : (
+                    <Credits value={fmtCredits(it.data.creditsRedeemed)} sign="−" />
+                  )}
                 </p>
                 <p className="text-[11px] text-muted">{now === null ? " " : timeAgo(it.at, now)}</p>
               </div>
@@ -87,7 +98,7 @@ export function Timeline({
                 </div>
               )}
 
-              {it.kind === "redemption" && pendingRedeem && it.data.toUserId === meId && (
+              {it.kind === "redemption" && pendingRedeem && it.data.requestedBy !== meId && (
                 <div className="flex gap-1">
                   <button aria-label="Confirmar canje" disabled={pending} onClick={() => run(() => confirmRedemption(it.data.id, true))} className="grid size-9 place-items-center rounded-full bg-accent text-accent-fg">
                     <Check size={16} />
@@ -97,7 +108,7 @@ export function Timeline({
                   </button>
                 </div>
               )}
-              {it.kind === "redemption" && pendingRedeem && it.data.fromUserId === meId && (
+              {it.kind === "redemption" && pendingRedeem && it.data.requestedBy === meId && (
                 <button aria-label="Cancelar canje" disabled={pending} onClick={() => run(() => cancelRedemption(it.data.id))} className="grid size-8 place-items-center rounded-full text-muted hover:bg-surface-2">
                   <X size={15} />
                 </button>

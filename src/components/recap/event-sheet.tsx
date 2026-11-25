@@ -48,7 +48,7 @@ export function EventSheet({
   // Al editar manda la copia guardada en el propio registro; al crear, el tipo elegido.
   const type: EventTypeView | undefined = editing
     ? {
-        ...(types.find((t) => t.name === editing.typeName) ?? { id: "", subcategories: [] }),
+        ...(types.find((t) => t.name === editing.typeName) ?? { id: "", ownerId: "", ownerName: "", subcategories: [] }),
         name: editing.typeName,
         emoji: editing.emoji,
         kind: editing.kind,

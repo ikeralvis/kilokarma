@@ -37,6 +37,7 @@ export async function getDashboard(me: Profile): Promise<DashboardData> {
     ? await db.select().from(tripPassengers).where(inArray(tripPassengers.tripId, tripRows.map((t) => t.id)))
     : [];
 
+  const circle = [uid, ...friendRows.map((r) => (r.requesterId === uid ? r.addresseeId : r.requesterId))];
   const [redemptionRows, favoriteRows, rewardRows] = await Promise.all([
     db
       .select()
@@ -45,7 +46,8 @@ export async function getDashboard(me: Profile): Promise<DashboardData> {
       .orderBy(desc(redemptions.createdAt))
       .limit(200),
     db.select().from(favorites).where(eq(favorites.ownerId, uid)).orderBy(desc(favorites.createdAt)),
-    db.select().from(rewards).where(eq(rewards.ownerId, uid)).orderBy(rewards.credits),
+    // Listas de canjes: la mía y las de mis amigos (al invitar se usa la de quien cobra).
+    db.select().from(rewards).where(inArray(rewards.ownerId, circle)).orderBy(rewards.credits),
   ]);
 
   const friendIds = friendRows.map((r) => (r.requesterId === uid ? r.addresseeId : r.requesterId));
@@ -98,9 +100,10 @@ export async function getDashboard(me: Profile): Promise<DashboardData> {
       concept: r.concept,
       creditsRedeemed: r.creditsRedeemed,
       status: r.status,
+      requestedBy: r.requestedBy ?? r.fromUserId,
       createdAt: r.createdAt.toISOString(),
     })),
-    rewards: rewardRows.map((r) => ({ id: r.id, name: r.name, credits: r.credits })),
+    rewards: rewardRows.map((r) => ({ id: r.id, ownerId: r.ownerId, name: r.name, credits: r.credits })),
     favorites: favoriteRows.map((f) => ({
       id: f.id,
       name: f.name,
@@ -127,7 +130,17 @@ export async function getRecap(me: Profile): Promise<RecapData> {
   const partRows = eventRows.length
     ? await db.select().from(eventParticipants).where(inArray(eventParticipants.eventId, eventRows.map((e) => e.id)))
     : [];
-  const typeRows = await db.select().from(eventTypes).where(eq(eventTypes.ownerId, uid)).orderBy(eventTypes.createdAt);
+  // Categorías compartidas: las mías y las de mis amigos. Si dos se llaman igual, gana la mía.
+  const circle = [uid, ...dash.friends.map((f) => f.id)];
+  const allTypes = await db.select().from(eventTypes).where(inArray(eventTypes.ownerId, circle)).orderBy(eventTypes.createdAt);
+  const seen = new Set<string>();
+  const typeRows = [...allTypes.filter((t) => t.ownerId === uid), ...allTypes.filter((t) => t.ownerId !== uid)].filter((t) => {
+    const k = t.name.trim().toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  const ownerName = (id: string) => (id === uid ? me.name : (dash.friends.find((f) => f.id === id)?.name ?? "?"));
 
   // Personas que salen en eventos y aún no están en la lista (p. ej. antiguos amigos).
   const known = new Set(dash.people.map((p) => p.id));
@@ -139,7 +152,7 @@ export async function getRecap(me: Profile): Promise<RecapData> {
   return {
     ...dash,
     people: [...dash.people, ...extra.map((p) => ({ id: p.userId, name: p.name }))],
-    types: typeRows.map((t) => ({ id: t.id, name: t.name, emoji: t.emoji, kind: t.kind, scope: t.scope, unit: t.unit, xp: t.xp, subcategories: t.subcategories })),
+    types: typeRows.map((t) => ({ id: t.id, ownerId: t.ownerId, ownerName: ownerName(t.ownerId), name: t.name, emoji: t.emoji, kind: t.kind, scope: t.scope, unit: t.unit, xp: t.xp, subcategories: t.subcategories })),
     events: eventRows.map((e) => ({
       id: e.id,
       createdBy: e.createdBy,

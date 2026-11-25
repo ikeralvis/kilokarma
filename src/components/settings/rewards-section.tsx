@@ -3,19 +3,14 @@
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { addReward, deleteReward, updateReward } from "@/app/actions";
+import { Coin } from "@/components/ui/coin";
 import { inputCls } from "@/components/ui/form";
+import { EXPERIENCES } from "@/lib/event-defaults";
 import { useRun } from "@/components/use-run";
 import type { RewardView } from "@/lib/types";
 import { Card } from "./card";
 
-const SUGGESTED = [
-  { name: "Café", credits: 15 },
-  { name: "Caña", credits: 25 },
-  { name: "Pintxo de tortilla", credits: 30 },
-  { name: "Entrada de cine", credits: 90 },
-  { name: "Comida", credits: 130 },
-  { name: "Cena", credits: 200 },
-];
+const SUGGESTED = EXPERIENCES;
 
 export function RewardsSection({ rewards }: { rewards: RewardView[] }) {
   const [name, setName] = useState("");
@@ -23,7 +18,7 @@ export function RewardsSection({ rewards }: { rewards: RewardView[] }) {
   const { run, pending, error } = useRun();
 
   return (
-    <Card id="canjes" title="En qué canjear" hint="Invitaciones con las que saldas créditos y cuánto vale cada una.">
+    <Card id="canjes" title="Mi lista de canjes" hint="Lo que aceptas como pago cuando alguien te debe créditos, y su precio. Tus amigos la ven al invitarte y tú se lo puedes pedir. Mejor experiencias que cosas.">
       <ul className="space-y-2">
         {rewards.map((r) => (
           <RewardRow key={`${r.id}-${r.name}-${r.credits}`} reward={r} />
@@ -58,7 +53,7 @@ export function RewardsSection({ rewards }: { rewards: RewardView[] }) {
         }}
       >
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" className={inputCls} />
-        <input value={credits} onChange={(e) => setCredits(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="cr." className={inputCls} />
+        <input value={credits} onChange={(e) => setCredits(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Precio" aria-label="Precio en créditos" className={inputCls} />
         <button disabled={pending || !name || !credits} className="h-12 rounded-2xl bg-accent px-4 font-semibold text-accent-fg disabled:opacity-40">
           Añadir
         </button>
@@ -91,7 +86,7 @@ function RewardRow({ reward }: { reward: RewardView }) {
           aria-label="Créditos"
           className="h-10 w-16 rounded-xl bg-transparent px-2 text-right text-base tabular-nums outline-none focus:bg-bg"
         />
-        <span className="text-xs text-muted">cr.</span>
+        <Coin size={16} />
         <button aria-label={`Borrar ${reward.name}`} disabled={pending} onClick={() => run(() => deleteReward(reward.id))} className="grid size-8 place-items-center rounded-full text-muted">
           <Trash2 size={15} />
         </button>

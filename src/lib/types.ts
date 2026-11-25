@@ -24,6 +24,8 @@ export type RedemptionView = {
   concept: string;
   creditsRedeemed: number;
   status: "pending" | "confirmed";
+  /** Quién lo propuso; confirma la otra persona. */
+  requestedBy: string;
   createdAt: string;
 };
 export type FavoriteView = {
@@ -35,7 +37,8 @@ export type FavoriteView = {
   friendId: string | null;
   driver: "me" | "friend";
 };
-export type RewardView = { id: string; name: string; credits: number };
+/** Canje de la lista de alguien (`ownerId` = quien cobra y pone el precio). */
+export type RewardView = { id: string; ownerId: string; name: string; credits: number };
 export type VehicleView = { tripXp: number; hasCar: boolean; fuelPricePerL: number; consumptionL100: number; euroPerCredit: number };
 
 export type DashboardData = {
@@ -55,6 +58,9 @@ export type EventKind = "event" | "counter";
 export type EventScope = "individual" | "group";
 export type EventTypeView = {
   id: string;
+  /** Quién la creó (las categorías se comparten entre amigos). */
+  ownerId: string;
+  ownerName: string;
   name: string;
   emoji: string;
   kind: EventKind;

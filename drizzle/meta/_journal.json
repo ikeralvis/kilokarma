@@ -50,6 +50,13 @@
       "when": 1795451973758,
       "tag": "0006_good_toad_men",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795595899607,
+      "tag": "0007_gray_genesis",
+      "breakpoints": true
     }
   ]
 }

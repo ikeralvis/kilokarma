@@ -147,7 +147,12 @@ export const redemptions = pgTable(
       .references(() => profiles.userId),
     concept: text("concept").notNull(),
     creditsRedeemed: integer("credits_redeemed").notNull(),
-    /** Solo descuenta créditos cuando el conductor (toUser) lo confirma. */
+    /**
+     * Quién lo propuso: el que invita («te he invitado a…») o el que cobra («te pido…»).
+     * Lo confirma siempre la otra persona; solo entonces se descuentan los créditos.
+     */
+    requestedBy: text("requested_by").references(() => profiles.userId),
+    /** Solo descuenta créditos cuando la otra parte lo confirma. */
     status: redemptionStatus("status").notNull().default("pending"),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

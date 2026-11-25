@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { eventTypes, profiles, rewards, type Profile } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 import { eq } from "drizzle-orm";
-import { DEFAULT_EVENT_TYPES } from "@/lib/event-defaults";
+import { DEFAULT_EVENT_TYPES, EXPERIENCES } from "@/lib/event-defaults";
 
 /** Usuario autenticado + su perfil (se crea en el primer acceso). `null` si no hay sesión. */
 export async function getCurrentProfile(): Promise<Profile | null> {
@@ -23,9 +23,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     .onConflictDoNothing();
   // Catálogo de canjes inicial (editable en la app).
   await db.insert(rewards).values([
-    { ownerId: user.id, name: "Pintxo de tortilla", credits: 30 },
-    { ownerId: user.id, name: "Ronda de cañas", credits: 70 },
-    { ownerId: user.id, name: "Cena", credits: 200 },
+    ...EXPERIENCES.slice(0, 5).map((r) => ({ ownerId: user.id, ...r })),
   ]);
   await db.insert(eventTypes).values(DEFAULT_EVENT_TYPES.map((t) => ({ ownerId: user.id, ...t })));
   const [created] = await db.select().from(profiles).where(eq(profiles.userId, user.id)).limit(1);

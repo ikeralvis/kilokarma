@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { addTrip, updateTrip } from "@/app/actions";
 import { Chip, Field, inputCls, SubmitButton } from "@/components/ui/form";
+import { Credits } from "@/components/ui/coin";
 import { Sheet } from "@/components/ui/sheet";
 import { useRun } from "@/components/use-run";
 import { splitCredits } from "@/lib/balance";
@@ -158,12 +159,16 @@ export function TripSheet({
         </Field>
 
         <div className="rounded-2xl bg-surface-2 p-3 text-sm">
-          <p className="font-medium tabular-nums">
-            {credits} cr. <span className="font-normal text-muted">· {(distance * costPerKm(priceNum || 0, driverVehicle.consumptionL100) || 0).toFixed(2)} €</span>
+          <p className="flex flex-wrap items-center gap-x-1.5 font-medium">
+            {driverId ? (driverId === me.id ? "Ganas" : `${nameOf(driverId)} gana`) : "Total"} <Credits value={credits} className="font-semibold" />
+            <span className="font-normal text-muted">· {(distance * costPerKm(priceNum || 0, driverVehicle.consumptionL100) || 0).toFixed(2)} € de gasolina</span>
           </p>
           {passengerIds.length > 0 && credits > 0 && (
-            <p className="mt-0.5 text-xs text-muted">{passengerIds.map((id, i) => `${nameOf(id)} ${split[i]}`).join(" · ")}</p>
+            <p className="mt-1 text-xs text-muted">
+              {passengerIds.map((id, i) => `${id === me.id ? "Tú le debes" : `${nameOf(id)} le debe`} ${split[i]}`).join(" · ")}
+            </p>
           )}
+          <p className="mt-1 text-[11px] text-muted">Quien conduce gana los créditos; quien va de acompañante los debe.</p>
         </div>
 
         {!preset && !editing && (

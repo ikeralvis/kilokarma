@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, inArray, ne, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -273,7 +273,17 @@ export async function redeem(input: z.input<typeof redeemSchema>): Promise<Actio
   const p = redeemSchema.safeParse(input);
   if (!p.success) return fail(p.error.issues[0].message);
   if (!(await friendIdsOf(me.userId)).includes(p.data.toUserId)) return fail("Solo puedes invitar a tus amigos");
-  await db.insert(redemptions).values({ fromUserId: me.userId, toUserId: p.data.toUserId, concept: p.data.concept, creditsRedeemed: p.data.credits });
+  await db.insert(redemptions).values({ fromUserId: me.userId, toUserId: p.data.toUserId, concept: p.data.concept, creditsRedeemed: p.data.credits, requestedBy: me.userId });
+  return done();
+}
+
+/** Quien cobra pide un canje de SU lista a quien le debe créditos; lo acepta la otra persona. */
+export async function requestRedemption(input: { fromUserId: string; rewardId: string }): Promise<ActionResult> {
+  const me = await requireProfile("/coche");
+  const [reward] = await db.select().from(rewards).where(and(eq(rewards.id, input.rewardId), eq(rewards.ownerId, me.userId))).limit(1);
+  if (!reward) return fail("Elige un canje de tu lista");
+  if (!(await friendIdsOf(me.userId)).includes(input.fromUserId)) return fail("Solo puedes pedírselo a tus amigos");
+  await db.insert(redemptions).values({ fromUserId: input.fromUserId, toUserId: me.userId, concept: reward.name, creditsRedeemed: reward.credits, requestedBy: me.userId });
   return done();
 }
 
@@ -337,7 +347,9 @@ export async function addEvent(input: z.input<typeof eventSchema>): Promise<Acti
   if (!p.success) return fail(p.error.issues[0].message);
   const e = p.data;
 
-  const [type] = await db.select().from(eventTypes).where(and(eq(eventTypes.id, e.typeId), eq(eventTypes.ownerId, me.userId))).limit(1);
+  // Las categorías se comparten: vale una mía o de un amigo.
+  const circle = [me.userId, ...(await friendIdsOf(me.userId))];
+  const [type] = await db.select().from(eventTypes).where(and(eq(eventTypes.id, e.typeId), inArray(eventTypes.ownerId, circle))).limit(1);
   if (!type) return fail("Tipo no encontrado");
   if (type.scope === "group" && new Set(e.participantIds).size < 2) return fail("Este tipo es grupal: marca al menos a un amigo");
 
@@ -481,10 +493,15 @@ export async function updateEvent(id: string, input: z.input<typeof eventEditSch
 
 /* ───────── Confirmar canjes ───────── */
 
-/** El conductor confirma (o rechaza) que le han invitado: solo entonces se descuentan los créditos. */
+/** La otra parte confirma (o rechaza) el canje: solo entonces se descuentan los créditos. */
 export async function confirmRedemption(id: string, accept: boolean): Promise<ActionResult> {
   const me = await requireProfile("/coche");
-  const cond = and(eq(redemptions.id, id), eq(redemptions.toUserId, me.userId), eq(redemptions.status, "pending"));
+  const cond = and(
+    eq(redemptions.id, id),
+    eq(redemptions.status, "pending"),
+    or(eq(redemptions.fromUserId, me.userId), eq(redemptions.toUserId, me.userId)),
+    ne(redemptions.requestedBy, me.userId),
+  );
   if (accept) await db.update(redemptions).set({ status: "confirmed", confirmedAt: new Date() }).where(cond);
   else await db.delete(redemptions).where(cond);
   return done();
@@ -493,6 +510,6 @@ export async function confirmRedemption(id: string, accept: boolean): Promise<Ac
 /** Quien registró el canje puede cancelarlo mientras esté pendiente. */
 export async function cancelRedemption(id: string): Promise<ActionResult> {
   const me = await requireProfile("/coche");
-  await db.delete(redemptions).where(and(eq(redemptions.id, id), eq(redemptions.fromUserId, me.userId), eq(redemptions.status, "pending")));
+  await db.delete(redemptions).where(and(eq(redemptions.id, id), eq(redemptions.requestedBy, me.userId), eq(redemptions.status, "pending")));
   return done();
 }

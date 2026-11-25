@@ -6,6 +6,7 @@ import { Chip, Field, inputCls, SubmitButton } from "@/components/ui/form";
 import { useRun } from "@/components/use-run";
 import { costPerKm } from "@/lib/credits";
 import type { Person, VehicleView } from "@/lib/types";
+import { Credits } from "@/components/ui/coin";
 import { Card } from "./card";
 
 const num = (s: string) => Number(s.replace(",", "."));
@@ -60,8 +61,8 @@ export function ProfileSection({ me, vehicle, accent }: { me: Person; vehicle: V
             </div>
             <p className="rounded-2xl bg-surface-2 p-3 text-sm text-muted">
               Cada km cuesta <span className="font-medium text-fg">{perKm.toFixed(3)} €</span> ≈{" "}
-              <span className="font-medium text-fg">{(perKm / epcNum).toFixed(2)} cr.</span> Un viaje de 12 km ≈{" "}
-              <span className="font-medium text-fg">{Math.round((12 * perKm) / epcNum)} cr.</span> El precio de la gasolina se actualiza solo con el último que metas en un viaje.
+              <Credits value={(perKm / epcNum).toFixed(2)} className="font-medium text-fg" />. Un viaje de 12 km ≈{" "}
+              <Credits value={Math.round((12 * perKm) / epcNum)} className="font-medium text-fg" />. El precio de la gasolina se actualiza solo con el último que metas en un viaje.
             </p>
           </>
         ) : (
